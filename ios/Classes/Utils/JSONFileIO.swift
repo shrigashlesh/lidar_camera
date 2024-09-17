@@ -53,4 +53,23 @@ struct JSONFileIO {
         let decodedData = try decoder.decode(type, from: jsonData)
         return decodedData
     }
+    
+    func readAsString(fromDocumentNamed documentName: String) throws -> String {
+           let rootFolderURL = try manager.url(
+               for: .libraryDirectory,
+               in: .userDomainMask,
+               appropriateFor: nil,
+               create: false
+           )
+
+           let nestedFolderURL = rootFolderURL.appendingPathComponent("Lidar-Data")
+           let fileURL = nestedFolderURL.appendingPathComponent(documentName).appendingPathExtension("json")
+
+           // Read data from the file and convert it to String
+           let jsonData = try Data(contentsOf: fileURL)
+           guard let jsonString = String(data: jsonData, encoding: .utf8) else {
+               throw NSError(domain: "InvalidEncoding", code: -1, userInfo: [NSLocalizedDescriptionKey: "Failed to convert data to string using UTF-8 encoding"])
+           }
+           return jsonString
+       }
 }

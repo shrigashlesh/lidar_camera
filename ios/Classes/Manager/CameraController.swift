@@ -144,7 +144,7 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
         
         // Find a suitable depth data format.
         guard let depthFormat = (format.supportedDepthDataFormats.last { depthFormat in
-            depthFormat.formatDescription.mediaSubType.rawValue == kCVPixelFormatType_DepthFloat16
+            depthFormat.formatDescription.mediaSubType.rawValue == kCVPixelFormatType_DepthFloat32
         }) else {
             throw ConfigurationError.requiredFormatUnavailable
         }
@@ -266,15 +266,15 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
             return
         }
         
-        let cameraIntrinsicMatrix2D = cameraCalibrationData.extractIntrinsicMatrix2D()
-        let viewTransformMatrix2D = cameraCalibrationData.extractViewTransform2D()
+        let cameraIntrinsicMatrix = serializeMatrix3x3(cameraCalibrationData.intrinsicMatrix)
+        let viewTransformMatrix = serializeMatrix(cameraCalibrationData.extrinsicMatrix)
         
         
         // Create an instance of DepthConversionData
         let depthConversionData = DepthConversionData(
             depth: depthValues,
-            cameraIntrinsic: cameraIntrinsicMatrix2D,
-            viewTransform: viewTransformMatrix2D
+            cameraIntrinsic: cameraIntrinsicMatrix,
+            viewTransform: viewTransformMatrix
         )
         
         // Convert the CMTime to a readable format, such as seconds
@@ -327,21 +327,6 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
             print("Failed to save metadata to JSON file: \(error)")
         }
     }
-    
-    private func readDepthDataContainer() -> DepthConversionDataContainer? {
-        guard let fileName = fileName else {return nil}
-        let decoder = JSONDecoder()
-        
-        do {
-            let decodedDepthData = try JSONFileIO().read(DepthConversionDataContainer.self, toDocumentNamed: fileName, decodeUsing: decoder)
-            print("Successfully read depth metadata from \(fileName)")
-            return decodedDepthData
-        } catch {
-            print("Failed to read metadata from JSON file: \(error)")
-            return nil
-        }
-    }
-    
     
     func saveVideoWithMetadata(videoURL: URL) {
         // Request authorization if not already done

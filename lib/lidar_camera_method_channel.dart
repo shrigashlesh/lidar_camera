@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
@@ -14,5 +16,17 @@ class MethodChannelLidarCamera extends LidarCameraPlatform {
     final isAvailable =
         await methodChannel.invokeMethod<bool>('checkLidarAvailability');
     return isAvailable;
+  }
+
+  @override
+  Future<Map<String, dynamic>?> readDepthConversionData({
+    required String fileName,
+  }) async {
+    final jsonString =
+        await methodChannel.invokeMethod('readDepthConversionData', {
+      'fileName': fileName,
+    });
+    final result = jsonDecode(jsonString);
+    return result["timestampedData"];
   }
 }
