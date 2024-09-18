@@ -24,10 +24,12 @@ class _MyAppState extends State<MyApp> {
             IconButton(
               onPressed: () async {
                 final properties = await cam.readDepthConversionData(
-                  at: 1.86,
-                  fileName: "E850BB6A-0904-4776-8393-9D3987431EE6",
+                  frameNumber: 80,
+                  fileName: "871CA6DD-3DD1-45D9-9DDB-8C957D158BFF",
                 );
-                print(properties.toString());
+
+                final depth = properties!.decodeDepthData();
+                print(depth);
               },
               icon: const Icon(Icons.abc),
             ),

@@ -46,7 +46,7 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
     private var assetWriter: AVAssetWriter?
     private var assetWriterInput: AVAssetWriterInput?
     private var assetWriterPixelBufferInput: AVAssetWriterInputPixelBufferAdaptor?
-    private var bufferedDepthConversionData: DepthConversionDataContainer?
+    private var bufferedDepthConversionData: [DepthConversionData] = []
     
     // Timestamp to manage frame timing during video recording.
     private var lastTimestamp: CMTime = .zero
@@ -73,7 +73,7 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
         }
     }
     
-    var fileName: String?
+    var videoFileName: String?
     override init() {
         super.init()
         
@@ -200,9 +200,9 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
     
     // Start recording video, setting up the asset writer.
     private func startRecording() {
-        fileName = UUID().uuidString
-        guard let fileName = fileName else { return }
-        let outputURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(fileName).mov")
+        videoFileName = UUID().uuidString
+        guard let videoFileName = videoFileName else { return }
+        let outputURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(videoFileName).mov")
         do {
             // Set up the asset writer for video recording.
             assetWriter = try AVAssetWriter(outputURL: outputURL, fileType: .mov)
@@ -231,7 +231,7 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
             if let assetWriter = assetWriter,
                let assetWriterInput = assetWriterInput
             {
-                bufferedDepthConversionData = DepthConversionDataContainer()
+                bufferedDepthConversionData = []
                 assetWriter.add(assetWriterInput)
                 assetWriter.startWriting()
                 assetWriter.startSession(atSourceTime: .zero)
@@ -257,29 +257,26 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
     }
     
     private func bufferDepthAndCameraData(depthData: AVDepthData) {
-        // Flatten the depth array
-        let depthValues = depthData.extractDepthMap2D()
-        
         // Extract camera intrinsic matrix and view transform
         guard let cameraCalibrationData = depthData.cameraCalibrationData else {
             print("No camera calibration data available")
             return
         }
         
-        let cameraIntrinsicMatrix = serializeMatrix3x3(cameraCalibrationData.intrinsicMatrix)
-        let viewTransformMatrix = serializeMatrix(cameraCalibrationData.extrinsicMatrix)
-        
-        
+        let cameraIntrinsicMatrix = serializeMatrixToData(cameraCalibrationData.intrinsicMatrix)
+        let viewTransformMatrix = serializeMatrixToData(cameraCalibrationData.extrinsicMatrix)
+        guard let depthValues = depthData.asBytes() else {
+            return
+        }
         // Create an instance of DepthConversionData
         let depthConversionData = DepthConversionData(
             depth: depthValues,
             cameraIntrinsic: cameraIntrinsicMatrix,
-            viewTransform: viewTransformMatrix
+            viewTransform: viewTransformMatrix,
+            timeStamp: CMTimeGetSeconds(lastTimestamp)
         )
         
-        // Convert the CMTime to a readable format, such as seconds
-        let timestampKey = String(CMTimeGetSeconds(lastTimestamp))
-        bufferedDepthConversionData?.timestampedData[timestampKey] = depthConversionData
+        bufferedDepthConversionData.append(depthConversionData)
     }
     
     
@@ -288,7 +285,7 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
         assetWriter = nil
         assetWriterInput = nil
         assetWriterPixelBufferInput = nil
-        bufferedDepthConversionData = DepthConversionDataContainer()
+        bufferedDepthConversionData = []
     }
     
     // Finalize and complete the video recording.
@@ -305,7 +302,7 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
                     
                     DispatchQueue.main.async { [self] in
                         print("Saving video to gallery at path: \(videoURL.path)")
-                        self.saveVideoWithMetadata(videoURL: videoURL)
+                        self.saveVideoToGallery(videoURL: videoURL)
                     }
                     self.resetRecordingState()
                 }
@@ -316,19 +313,43 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
     }
     
     private func saveBufferedDataToFile() {
-        guard let fileName = fileName else {return}
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = .prettyPrinted
-        
-        do {
-            try JSONFileIO().write(bufferedDepthConversionData, toDocumentNamed: fileName, encodedUsing: encoder)
-            print("Successfully saved depth conversion data to \(fileName)")
-        } catch {
-            print("Failed to save metadata to JSON file: \(error)")
+        guard let videoFileName = videoFileName else { return }
+        let fileIo = BinaryFileIO()
+        for depthConversionData in bufferedDepthConversionData {
+            // Calculate frame number from timestamp
+            let frameNumber = frameNumber(from: depthConversionData.timeStamp)
+            
+            // Define file names based on frame number
+            let depthFileName = "depth_\(frameNumber)"
+            let cameraIntrinsicFileName = "cameraIntrinsic_\(frameNumber)"
+            let viewTransformFileName = "viewTransform_\(frameNumber)"
+            
+            do {
+                // Save depth data
+                try fileIo.write(depthConversionData.depth, folder: videoFileName, toDocumentNamed: depthFileName)
+                
+                // Save camera intrinsic matrix
+                try fileIo.write(depthConversionData.cameraIntrinsic, folder: videoFileName, toDocumentNamed: cameraIntrinsicFileName)
+                
+                // Save view transform matrix
+                try fileIo.write(depthConversionData.viewTransform, folder: videoFileName, toDocumentNamed: viewTransformFileName)
+                
+                print("Successfully saved depth, camera intrinsic, and view transform data for frame \(frameNumber)")
+            } catch {
+                print("Failed to save data: \(error)")
+            }
         }
     }
     
-    func saveVideoWithMetadata(videoURL: URL) {
+    func frameNumber(from timestamp: Float64) -> String {
+        // Calculate frame number
+        let frameNumber = Int64(round(timestamp * 30))
+        
+        return String(format: "%04d", frameNumber)
+    }
+
+    
+    func saveVideoToGallery(videoURL: URL) {
         // Request authorization if not already done
         PHPhotoLibrary.requestAuthorization { status in
             guard status == .authorized else {

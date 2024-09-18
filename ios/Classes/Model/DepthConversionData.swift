@@ -7,12 +7,9 @@
 
 import Foundation
 
-public struct DepthConversionData: Codable {
-    let depth: [[Float]]
-    let cameraIntrinsic: [Float]
-    let viewTransform: [Float]
-}
-
-public struct DepthConversionDataContainer: Codable {
-    var timestampedData: [String: DepthConversionData] = [:]
+public struct DepthConversionData {
+    let depth: Data
+    let cameraIntrinsic: Data
+    let viewTransform: Data
+    let timeStamp: Float64
 }

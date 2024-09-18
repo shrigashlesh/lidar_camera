@@ -1,5 +1,6 @@
 import Flutter
 import UIKit
+import Foundation
 
 public class LidarCameraPlugin: NSObject, FlutterPlugin {
     public static func register(with registrar: FlutterPluginRegistrar) {
@@ -17,13 +18,31 @@ public class LidarCameraPlugin: NSObject, FlutterPlugin {
             result(true)
         case "readDepthConversionData":
             guard let arguments = call.arguments as? [String: Any],
-                  let fileName = arguments["fileName"] as? String else{
+                  let videoFileName = arguments["fileName"] as? String,
+                  let frameNumber = arguments["frameNumber"] as? Int else{
                 result(FlutterError(code: "INVALID_ARGUMENT", message: "Invalid argument in readDepthConversionData call", details: nil))
                 return
             }
             do {
-                let conversionData =  try JSONFileIO().readAsString(fromDocumentNamed: fileName)
-                result(conversionData)
+                let frameNumberSuffix = String(format: "%04d", frameNumber);
+                let fileIo = BinaryFileIO()
+                // Read the three separate files
+                let depthData = try fileIo.read(folder: videoFileName, fromDocumentNamed: "depth_\(frameNumberSuffix)")
+                let cameraIntrinsicData = try fileIo.read(folder: videoFileName, fromDocumentNamed: "cameraIntrinsic_\(frameNumberSuffix)")
+                let viewTransformData = try fileIo.read(folder: videoFileName, fromDocumentNamed: "viewTransform_\(frameNumberSuffix)")
+                
+                guard let cameraIntrinsic = deserialize3x3Matrix(data: cameraIntrinsicData), let viewTransform = deserialize4x3Matrix(data: viewTransformData) else {
+                    result(FlutterError(code: "READ_ERROR", message: "Failed to read depth data", details: nil))
+                    return
+                }
+                // Convert the Data to base64 encoded strings
+                let depthBase64 = depthData.base64EncodedString()
+                let properties = [
+                    "depth": depthBase64,
+                    "cameraIntrinsic": serializeMatrix(cameraIntrinsic),
+                    "viewTransform": serializeMatrix(viewTransform)
+                ] as [String : Any]
+                result(properties)
             } catch {
                 result(FlutterError(code: "READ_ERROR", message: "Failed to read depth data", details: error.localizedDescription))
             }

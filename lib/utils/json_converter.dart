@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:json_annotation/json_annotation.dart';
 import 'package:vector_math/vector_math_64.dart';
 
@@ -22,7 +25,7 @@ class Matrix4Converter implements JsonConverter<Matrix4, List<dynamic>> {
 
   @override
   Matrix4 fromJson(List<dynamic> json) {
-    return Matrix4.fromList(json.cast<double>());
+    return Matrix4.fromList([...json.cast<double>(), 0, 0, 0, 1]);
   }
 
   @override
@@ -30,5 +33,19 @@ class Matrix4Converter implements JsonConverter<Matrix4, List<dynamic>> {
     final list = List.filled(16, 0.0);
     matrix.copyIntoArray(list);
     return list;
+  }
+}
+
+class Uint8ListConverter implements JsonConverter<Uint8List, String> {
+  const Uint8ListConverter();
+
+  @override
+  Uint8List fromJson(String source) {
+    return base64Decode(source);
+  }
+
+  @override
+  String toJson(Uint8List data) {
+    return base64Encode(data);
   }
 }
