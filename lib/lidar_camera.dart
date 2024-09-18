@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:lidar_camera/model/depth_conversion_properties.dart';
 
 import 'lidar_camera_platform_interface.dart';
@@ -23,7 +25,7 @@ class LidarCamera {
 
       return properties;
     } catch (e) {
-      print("ERROR $e");
+      log("ERROR $e");
     }
     return null;
   }

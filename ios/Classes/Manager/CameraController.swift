@@ -333,8 +333,6 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
                 
                 // Save view transform matrix
                 try fileIo.write(depthConversionData.viewTransform, folder: videoFileName, toDocumentNamed: viewTransformFileName)
-                
-                print("Successfully saved depth, camera intrinsic, and view transform data for frame \(frameNumber)")
             } catch {
                 print("Failed to save data: \(error)")
             }
