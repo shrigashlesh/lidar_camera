@@ -38,10 +38,9 @@ class CameraManager: ObservableObject, CaptureDataReceiver, CaptureTimeReceiver 
         capturedData = CameraCapturedData()
         recordedTime = .zero
         controller = CameraController()
-        controller.isFilteringEnabled = true
         isRecording = false
         controller.startStream()
-        isFilteringDepth = controller.isFilteringEnabled
+        isFilteringDepth = false
         controller.captureDelegate = self
         controller.timeReceiverDelegate = self
         

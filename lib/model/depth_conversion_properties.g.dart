@@ -13,6 +13,9 @@ DepthConversionProperties _$DepthConversionPropertiesFromJson(
           const Matrix3Converter().fromJson(json['viewTransform'] as List),
       cameraIntrinsic:
           const Matrix3Converter().fromJson(json['cameraIntrinsic'] as List),
+      depth: (json['depth'] as List<dynamic>)
+          .map((e) => (e as List<dynamic>).map((e) => e as num).toList())
+          .toList(),
     );
 
 Map<String, dynamic> _$DepthConversionPropertiesToJson(
@@ -21,4 +24,5 @@ Map<String, dynamic> _$DepthConversionPropertiesToJson(
       'viewTransform': const Matrix3Converter().toJson(instance.transform),
       'cameraIntrinsic':
           const Matrix3Converter().toJson(instance.cameraIntrinsic),
+      'depth': instance.depth,
     };

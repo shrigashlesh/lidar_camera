@@ -15,7 +15,7 @@ struct JSONFileIO {
         encodedUsing encoder: JSONEncoder = .init()
     ) throws {
         let rootFolderURL = try manager.url(
-            for: .libraryDirectory,
+            for: .documentDirectory,
             in: .userDomainMask,
             appropriateFor: nil,
             create: false

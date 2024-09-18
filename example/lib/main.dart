@@ -33,9 +33,7 @@ class _MyAppState extends State<MyApp> {
             ),
           ],
         ),
-        body: const Center(
-          child: LidarCameraView(),
-        ),
+        body: const LidarCameraView(),
       ),
     );
   }

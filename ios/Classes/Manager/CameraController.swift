@@ -56,7 +56,7 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
     weak var timeReceiverDelegate: CaptureTimeReceiver?
     
     // Property to enable or disable depth filtering.
-    var isFilteringEnabled = true {
+    var isFilteringEnabled = false {
         didSet {
             depthDataOutput?.isFilteringEnabled = isFilteringEnabled
         }

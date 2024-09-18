@@ -11,6 +11,7 @@ class DepthConversionProperties {
   const DepthConversionProperties({
     required this.transform,
     required this.cameraIntrinsic,
+    required this.depth,
   });
 
   @Matrix3Converter()
@@ -20,6 +21,8 @@ class DepthConversionProperties {
   @Matrix3Converter()
   final Matrix3 cameraIntrinsic;
 
+  final List<List<num>> depth;
+
   static DepthConversionProperties fromJson(Map<String, dynamic> json) =>
       _$DepthConversionPropertiesFromJson(json);
 
@@ -27,5 +30,5 @@ class DepthConversionProperties {
 
   @override
   String toString() =>
-      'DepthConversionProperties(transform: $transform, cameraIntrinsic: $cameraIntrinsic)';
+      'DepthConversionProperties(transform: $transform, cameraIntrinsic: $cameraIntrinsic, depth: $depth)';
 }

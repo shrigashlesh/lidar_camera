@@ -11,6 +11,7 @@ dependencies:
   flutter:
     sdk: flutter
   json_annotation: ^4.9.0
+  matrix2d: ^1.0.4
   plugin_platform_interface: ^2.0.2
   vector_math: ^2.1.4
 

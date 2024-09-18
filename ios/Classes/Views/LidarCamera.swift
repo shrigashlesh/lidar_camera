@@ -20,28 +20,38 @@ struct LidarCamera: View {
     @State var isRecording = false
     
     var body: some View {
-        VStack {
-            HStack {
-                Text("Depth Filtering")
-                Toggle("Depth Filtering", isOn: $manager.isFilteringDepth).labelsHidden()
-                Spacer()
-            }
-            Text(manager.recordedTime.positionalTime)
-            ZStack{
-                if manager.dataAvailable {  MetalTextureColorZapView(
+        
+        //            HStack {
+        //                Text("Depth Filtering")
+        //                Toggle("Depth Filtering", isOn: $manager.isFilteringDepth).labelsHidden()
+        //            }
+        ZStack {
+            
+            // Metal view that displays the depth data
+            if manager.dataAvailable {
+                MetalTextureColorZapView(
                     rotationAngle: CGFloat(-Double.pi / 2),
                     maxDepth: $maxDepth,
                     minDepth: $minDepth,
                     capturedData: manager.capturedData
-                ).aspectRatio(9/16, contentMode:.fit)
-                }
+                )
+                .aspectRatio(9/16, contentMode: .fill)
+                .clipped()
             }
-            RecordButton(isRecording: $isRecording) {
-                manager.startRecording()
-            } stopAction: {
-                manager.outputVideoRecording()
-            }.frame(width: 70, height: 70)
+            
+            VStack {
+                RecordedTimeView(
+                    positionalTime: manager.recordedTime.positionalTime,
+                    isRecording: isRecording
+                )
+                Spacer()
+                RecordButton(isRecording: $isRecording) {
+                    manager.startRecording()
+                } stopAction: {
+                    manager.outputVideoRecording()
+                }
+                .frame(width: 70, height: 70)
+            }.padding(EdgeInsets(top: 10, leading: 0, bottom: 10, trailing: 0))
         }
     }
-    
 }

@@ -34,9 +34,7 @@ class LidarCamera {
 
       // Retrieve the data associated with the nearest key
       final nearestKeyString = nearestKey.toString();
-      print(nearestKeyString);
       final propertiesAtTime = conversionData[nearestKeyString];
-      print(propertiesAtTime["depth"].first.length);
       final properties = DepthConversionProperties.fromJson(propertiesAtTime);
 
       return properties;
