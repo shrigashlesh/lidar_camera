@@ -4,10 +4,10 @@
 //
 //  Created by Shrig Solutions on 16/09/2024.
 //
-
 import SwiftUI
 import MetalKit
 import Metal
+
 struct LidarCamera: View {
     @StateObject private var manager = CameraManager()
     
@@ -20,13 +20,7 @@ struct LidarCamera: View {
     @State var isRecording = false
     
     var body: some View {
-        
-        //            HStack {
-        //                Text("Depth Filtering")
-        //                Toggle("Depth Filtering", isOn: $manager.isFilteringDepth).labelsHidden()
-        //            }
         ZStack {
-            
             // Metal view that displays the depth data
             if manager.dataAvailable {
                 MetalTextureColorZapView(
@@ -52,6 +46,9 @@ struct LidarCamera: View {
                 }
                 .frame(width: 70, height: 70)
             }.padding(EdgeInsets(top: 10, leading: 0, bottom: 10, trailing: 0))
+        }
+        .onDisappear {
+            manager.cleanup()
         }
     }
 }

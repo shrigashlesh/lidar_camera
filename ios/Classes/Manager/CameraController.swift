@@ -42,7 +42,6 @@ class CameraController: NSObject, ObservableObject {
     private var assetWriter: AVAssetWriter?
     private var assetWriterInput: AVAssetWriterInput?
     private var audioWriterInput: AVAssetWriterInput?
-    private var assetWriterPixelBufferInput: AVAssetWriterInputPixelBufferAdaptor?
     private var bufferedDepthConversionData: [DepthConversionData] = []
     
     // Timestamp to manage frame timing during video recording.
@@ -87,6 +86,55 @@ class CameraController: NSObject, ObservableObject {
         
         checkAuthorization()
     }
+    
+    private func cleanup() {
+         // Stop capture sessions
+         captureSession.stopRunning()
+         audioCaptureSession.stopRunning()
+         
+         // Release capture session objects
+         captureSession = nil
+         audioCaptureSession = nil
+         
+         // Release outputs
+         depthDataOutput = nil
+         videoDataOutput = nil
+         audioDataOutput = nil
+         
+         // Release synchronizer
+         outputVideoSync = nil
+         
+         // Release Metal texture cache
+         if let textureCache = textureCache {
+             CVMetalTextureCacheFlush(textureCache, 0)
+             self.textureCache = nil
+         }
+         
+         // Release AVAssetWriter components
+         assetWriterInput?.markAsFinished()
+         audioWriterInput?.markAsFinished()
+         assetWriter?.finishWriting {
+             self.assetWriter = nil
+             self.assetWriterInput = nil
+             self.audioWriterInput = nil
+         }
+         
+         // Release buffered depth conversion data
+         bufferedDepthConversionData.removeAll()
+         
+         // Optionally reset timestamps
+         lastTimestamp = .zero
+         presentationTimestamp = .zero
+         
+         // Release delegates
+         captureDelegate = nil
+         timeReceiverDelegate = nil
+         
+     }
+     
+     deinit {
+         cleanup()
+     }
     
     func checkAuthorization() {
         // Check video authorization status
@@ -270,13 +318,6 @@ class CameraController: NSObject, ObservableObject {
             
             audioWriterInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
             audioWriterInput?.expectsMediaDataInRealTime = true
-            assetWriterPixelBufferInput = AVAssetWriterInputPixelBufferAdaptor(
-                assetWriterInput: assetWriterInput!,
-                sourcePixelBufferAttributes: [
-                    kCVPixelBufferPixelFormatTypeKey as String: kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
-                ]
-            )
-            
             
             // Start writing session for video and metadata.
             if let assetWriter = assetWriter,
@@ -343,7 +384,6 @@ class CameraController: NSObject, ObservableObject {
         assetWriter = nil
         assetWriterInput = nil
         audioWriterInput = nil
-        assetWriterPixelBufferInput = nil
         bufferedDepthConversionData = []
     }
     
@@ -500,7 +540,7 @@ extension AVCaptureSession {
             return synchronizationClock
         }
         
-        return masterClock ?? CMClockGetHostTimeClock()
+        return CMClockGetHostTimeClock()
     }
     
     /**

@@ -1,10 +1,3 @@
-/*
-See LICENSE folder for this sample’s licensing information.
-
-Abstract:
-An object that connects the camera controller and the views.
-*/
-
 import Foundation
 import SwiftUI
 import Combine
@@ -12,9 +5,8 @@ import simd
 import AVFoundation
 
 class CameraManager: ObservableObject, CaptureDataReceiver, CaptureTimeReceiver {
-
-    @Published var recordedTime : CMTime
-
+    
+    @Published var recordedTime: CMTime
     var capturedData: CameraCapturedData
     @Published var isFilteringDepth: Bool {
         didSet {
@@ -31,44 +23,39 @@ class CameraManager: ObservableObject, CaptureDataReceiver, CaptureTimeReceiver 
     }
     let controller: CameraController
     var cancellables = Set<AnyCancellable>()
-    var session: AVCaptureSession { controller.captureSession }
     
     init() {
-        // Create an object to store the captured data for the views to present.
+        // Initialize capturedData and controller
         capturedData = CameraCapturedData()
         recordedTime = .zero
         controller = CameraController()
         isRecording = false
-        controller.startStream()
         isFilteringDepth = false
+        
+        // Start streaming and set delegates
+        controller.startStream()
         controller.captureDelegate = self
         controller.timeReceiverDelegate = self
-        
-        NotificationCenter.default.publisher(for: UIDevice.orientationDidChangeNotification).sink { _ in
-            self.orientation = UIDevice.current.orientation
-        }.store(in: &cancellables)
     }
     
     func outputVideoRecording() {
         isRecording = false
     }
     
-    
     func startRecording() {
         isRecording = true
     }
     
-    
     func onNewData(capturedData: CameraCapturedData) {
         DispatchQueue.main.async {
             if !self.processingCapturedResult {
-                // Because the views hold a reference to `capturedData`, the app updates each texture separately.
+                // Update captured data for views
                 self.capturedData.depth = capturedData.depth
                 self.capturedData.colorY = capturedData.colorY
                 self.capturedData.colorCbCr = capturedData.colorCbCr
                 self.capturedData.cameraIntrinsics = capturedData.cameraIntrinsics
                 self.capturedData.cameraReferenceDimensions = capturedData.cameraReferenceDimensions
-                if self.dataAvailable == false {
+                if !self.dataAvailable {
                     self.dataAvailable = true
                 }
             }
@@ -77,5 +64,15 @@ class CameraManager: ObservableObject, CaptureDataReceiver, CaptureTimeReceiver 
     
     func onRecordingTimeUpdate(recordedTime: CMTime) {
         self.recordedTime = recordedTime
+    }
+    
+    func cleanup() {
+        controller.stopStream()
+        controller.captureDelegate = nil
+        controller.timeReceiverDelegate = nil
+    }
+    
+    deinit {
+        cleanup()
     }
 }

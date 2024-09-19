@@ -1,8 +1,12 @@
 import Flutter
 import SwiftUI
+import Flutter
+import SwiftUI
+
 class FlutterLidarCameraView: NSObject, FlutterPlatformView {
     private var _view: UIView
-    
+    private var hostingController: UIHostingController<LidarCamera>?
+
     init(
         frame: CGRect,
         viewIdentifier viewId: Int64,
@@ -22,6 +26,7 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
         let topController = UIApplication.shared.keyWindowPresentedController
         
         let vc = UIHostingController(rootView: LidarCamera())
+        hostingController = vc // Store reference to hosting controller
         let swiftUiView = vc.view!
         swiftUiView.translatesAutoresizingMaskIntoConstraints = false
         
@@ -38,43 +43,16 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
         
         vc.didMove(toParent: topController)
     }
-}
-extension UIApplication {
-    var keyWindow: UIWindow? {
-           // Get connected scenes
-           return self.connectedScenes
-               // Keep only active scenes, onscreen and visible to the user
-               .filter { $0.activationState == .foregroundActive }
-               // Keep only the first `UIWindowScene`
-               .first(where: { $0 is UIWindowScene })
-               // Get its associated windows
-               .flatMap({ $0 as? UIWindowScene })?.windows
-               // Finally, keep only the key window
-               .first(where: \.isKeyWindow)
+
+    func cleanup() {
+        // Ensure hostingController is removed and cleaned up
+        hostingController?.willMove(toParent: nil)
+        hostingController?.view.removeFromSuperview()
+        hostingController?.removeFromParent()
+        hostingController = nil
     }
     
-    var keyWindowPresentedController: UIViewController? {
-        var viewController = self.keyWindow?.rootViewController
-        
-        // If root `UIViewController` is a `UITabBarController`
-        if let presentedController = viewController as? UITabBarController {
-            // Move to selected `UIViewController`
-            viewController = presentedController.selectedViewController
-        }
-        
-        // Go deeper to find the last presented `UIViewController`
-        while let presentedController = viewController?.presentedViewController {
-            // If root `UIViewController` is a `UITabBarController`
-            if let presentedController = presentedController as? UITabBarController {
-                // Move to selected `UIViewController`
-                viewController = presentedController.selectedViewController
-            } else {
-                // Otherwise, go deeper
-                viewController = presentedController
-            }
-        }
-        
-        return viewController
+    deinit {
+        cleanup()
     }
-    
 }
