@@ -16,7 +16,7 @@ extension CMTime {
     var second: Int { return Int(roundedSeconds.truncatingRemainder(dividingBy: 60)) }
     var positionalTime: String {
         return hours > 0 ?
-            String(format: "%d:%02d:%02d",
+            String(format: "%02d:%02d:%02d",
                    hours, minute, second) :
             String(format: "%02d:%02d",
                    minute, second)

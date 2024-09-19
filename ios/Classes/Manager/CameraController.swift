@@ -13,28 +13,24 @@ protocol CaptureTimeReceiver: AnyObject {
     func onRecordingTimeUpdate(recordedTime: CMTime)
 }
 
-class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPushDelegate {
-    
-    // Custom error types for configuration failures.
-    enum ConfigurationError: Error {
-        case lidarDeviceUnavailable
-        case requiredFormatUnavailable
-        case micUnavailable
-    }
-    
+class CameraController: NSObject, ObservableObject {
+
     // Desired video resolution for capture.
     private let preferredWidthResolution = 1080
     private let preferredHeightResolution = 1920
     
     // Queue to handle video processing with high priority.
     private let videoQueue = DispatchQueue(label: "lidar_camera_videoQueue", qos: .userInteractive)
+    private let audioQueue = DispatchQueue(label: "lidar_camera_audioQueue", qos: .userInteractive)
     
     // Capture session object to manage input/output.
     private(set) var captureSession: AVCaptureSession!
+    private(set) var audioCaptureSession: AVCaptureSession!
     
     // Outputs for depth data and video data.
-    private var depthDataOutput: AVCaptureDepthDataOutput!
-    private var videoDataOutput: AVCaptureVideoDataOutput!
+    private var depthDataOutput: AVCaptureDepthDataOutput?
+    private var videoDataOutput: AVCaptureVideoDataOutput?
+    private var audioDataOutput: AVCaptureAudioDataOutput?
     
     // Synchronizer to align depth and video outputs.
     private var outputVideoSync: AVCaptureDataOutputSynchronizer!
@@ -45,15 +41,20 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
     // AVAssetWriter components for video recording.
     private var assetWriter: AVAssetWriter?
     private var assetWriterInput: AVAssetWriterInput?
+    private var audioWriterInput: AVAssetWriterInput?
     private var assetWriterPixelBufferInput: AVAssetWriterInputPixelBufferAdaptor?
     private var bufferedDepthConversionData: [DepthConversionData] = []
     
     // Timestamp to manage frame timing during video recording.
     private var lastTimestamp: CMTime = .zero
+    private var presentationTimestamp: CMTime = .zero
     
     // Delegate to notify when new captured data is available.
     weak var captureDelegate: CaptureDataReceiver?
     weak var timeReceiverDelegate: CaptureTimeReceiver?
+    
+    private var videoPermissionGranted = false
+    private var microphonePermissionGranted = false
     
     // Property to enable or disable depth filtering.
     var isFilteringEnabled = false {
@@ -87,23 +88,43 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
         checkAuthorization()
     }
     
-    
     func checkAuthorization() {
+        // Check video authorization status
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
-            setupSession()
-            break
+            videoPermissionGranted = true
         case .notDetermined:
-            AVCaptureDevice.requestAccess(for: .video) { (status) in
-                if status {
-                    self.setupSession()
-                }
+            AVCaptureDevice.requestAccess(for: .video) { (granted) in
+                self.videoPermissionGranted = granted
+                self.checkAndSetupSession()
             }
+            return // Exit early as we need to wait for the video permission request
+        case .denied, .restricted:
+            videoPermissionGranted = false
+        @unknown default:
             break
+        }
+        
+        // Check microphone authorization status
+        switch AVAudioSession.sharedInstance().recordPermission {
+        case .granted:
+            microphonePermissionGranted = true
+            checkAndSetupSession()
+        case .undetermined:
+            AVAudioSession.sharedInstance().requestRecordPermission { (granted) in
+                self.microphonePermissionGranted = granted
+                self.checkAndSetupSession()
+            }
         case .denied:
+            microphonePermissionGranted = false
+        @unknown default:
             break
-        default:
-            break
+        }
+    }
+    
+    private func checkAndSetupSession() {
+        if videoPermissionGranted && microphonePermissionGranted {
+            setupSession()
         }
     }
     
@@ -112,21 +133,24 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
         do {
             captureSession = AVCaptureSession()
             captureSession.sessionPreset = .hd1920x1080
-            
+            audioCaptureSession = AVCaptureSession()
+            audioCaptureSession.automaticallyConfiguresApplicationAudioSession = false
             // Begin configuration before adding inputs/outputs.
             captureSession.beginConfiguration()
+            audioCaptureSession.beginConfiguration()
             
             try setupCaptureInput()  // Configure the camera input.
             setupCaptureOutputs()    // Configure video and depth outputs.
             
             // Finalize and commit the session configuration.
             captureSession.commitConfiguration()
+            audioCaptureSession.commitConfiguration()
         } catch {
             fatalError("Unable to configure the capture session.")
         }
     }
     
-    // Set up the camera input (LiDAR) for depth data and video.
+    // Set up the camera input (LiDAR) for depth data, video, and audio.
     private func setupCaptureInput() throws {
         // Ensure the LiDAR camera is available.
         guard let lidarDevice = AVCaptureDevice.default(.builtInLiDARDepthCamera, for: .video, position: .back) else {
@@ -158,27 +182,43 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
         // Add the camera input to the capture session.
         let lidarCameraInput = try AVCaptureDeviceInput(device: lidarDevice)
         captureSession.addInput(lidarCameraInput)
+        
+        // Set up audio input (microphone)
+        guard let audioDevice = AVCaptureDevice.default(for: .audio) else {
+            throw ConfigurationError.micUnavailable
+        }
+        
+        let audioInput = try AVCaptureDeviceInput(device: audioDevice)
+        audioCaptureSession.addInput(audioInput)  // Add the audio input to the capture session.
     }
     
-    // Set up the outputs for video and depth data.
+    // Set up the outputs for video, depth data, and audio.
     private func setupCaptureOutputs() {
         // Configure the video data output for the session.
         videoDataOutput = AVCaptureVideoDataOutput()
+        guard let videoDataOutput = videoDataOutput else {return}
+        videoDataOutput.alwaysDiscardsLateVideoFrames = true
         captureSession.addOutput(videoDataOutput)
+        
+        // Configure the audio data output.
+        audioDataOutput = AVCaptureAudioDataOutput()
+        guard let audioDataOutput = audioDataOutput else {return}
+        audioDataOutput.setSampleBufferDelegate(self, queue: audioQueue)
+        audioCaptureSession.addOutput(audioDataOutput)
         
         // Configure the depth data output for the session.
         depthDataOutput = AVCaptureDepthDataOutput()
+        guard let depthDataOutput = depthDataOutput else {return}
         depthDataOutput.isFilteringEnabled = isFilteringEnabled
         captureSession.addOutput(depthDataOutput)
         
-        guard let depthConnection = depthDataOutput.connection(with: .depthData) else { return }
-        depthConnection.videoOrientation = .portrait
-        
-        // Synchronize depth and video outputs.
-        outputVideoSync = AVCaptureDataOutputSynchronizer(dataOutputs: [depthDataOutput, videoDataOutput])
+        // Synchronize depth, video, and audio outputs.
+        outputVideoSync = AVCaptureDataOutputSynchronizer(dataOutputs: [videoDataOutput, depthDataOutput])
         outputVideoSync.setDelegate(self, queue: videoQueue)
         
         // Enable the camera's intrinsic matrix delivery for advanced processing.
+        guard let depthConnection = depthDataOutput.connection(with: .depthData) else { return }
+        depthConnection.videoOrientation = .portrait
         guard let outputConnection = videoDataOutput.connection(with: .video) else { return }
         outputConnection.videoOrientation = .portrait
         if outputConnection.isCameraIntrinsicMatrixDeliverySupported {
@@ -196,6 +236,7 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
     // Stop the camera stream.
     func stopStream() {
         captureSession.stopRunning()
+        audioCaptureSession.stopRunning()
     }
     
     // Start recording video, setting up the asset writer.
@@ -204,10 +245,9 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
         guard let videoFileName = videoFileName else { return }
         let outputURL = FileManager.default.temporaryDirectory.appendingPathComponent("\(videoFileName).mov")
         do {
+            try self.activateAudioSession()
             // Set up the asset writer for video recording.
             assetWriter = try AVAssetWriter(outputURL: outputURL, fileType: .mov)
-            lastTimestamp = .zero
-            
             // Configure video settings.
             let videoSettings: [String: Any] = [
                 AVVideoCodecKey: AVVideoCodecType.h264,
@@ -215,10 +255,21 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
                 AVVideoHeightKey: preferredHeightResolution
             ]
             
+            // Audio settings.
+            let audioSettings: [String: Any] = [
+                AVFormatIDKey: kAudioFormatMPEG4AAC,
+                AVNumberOfChannelsKey: 2,
+                AVSampleRateKey: 44100,
+                AVEncoderBitRateKey: 64000
+            ]
+            
+            
             // Add inputs for video frames and metadata.
             assetWriterInput = AVAssetWriterInput(mediaType: .video, outputSettings: videoSettings)
             assetWriterInput?.expectsMediaDataInRealTime = true
             
+            audioWriterInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
+            audioWriterInput?.expectsMediaDataInRealTime = true
             assetWriterPixelBufferInput = AVAssetWriterInputPixelBufferAdaptor(
                 assetWriterInput: assetWriterInput!,
                 sourcePixelBufferAttributes: [
@@ -229,32 +280,39 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
             
             // Start writing session for video and metadata.
             if let assetWriter = assetWriter,
-               let assetWriterInput = assetWriterInput
+               let assetWriterInput = assetWriterInput ,
+               let audioWriterInput = audioWriterInput
+                
             {
                 bufferedDepthConversionData = []
+                lastTimestamp = .zero
                 assetWriter.add(assetWriterInput)
+                assetWriter.add(audioWriterInput)
                 assetWriter.startWriting()
-                assetWriter.startSession(atSourceTime: .zero)
+                assetWriter.startSession(atSourceTime: CMClockGetTime(captureSession.clock))
             }
         } catch {
             print("Error starting video recording: \(error)")
         }
     }
     
-    // Append video frames and depth data during recording.
-    private func appendPixelBufferAndDepth(pixelBuffer: CVPixelBuffer, depthData: AVDepthData, timestamp: CMTime) {
-        guard let assetWriterPixelBufferInput = assetWriterPixelBufferInput else { return }
+    // Append video frames, audio and depth data during recording.
+    private func appendVideoBufferAndDepth(buffer: CMSampleBuffer, depthData: AVDepthData) {
+        guard let assetWriter = assetWriterInput else { return }
         
         // Set frame duration for 30fps video.
         let frameDuration = CMTime(seconds: 1.0 / 30.0, preferredTimescale: 600)
         lastTimestamp = CMTimeAdd(lastTimestamp, frameDuration)
+        
         // Append pixel buffer if the writer is ready.
-        if assetWriterPixelBufferInput.assetWriterInput.isReadyForMoreMediaData {
-            assetWriterPixelBufferInput.append(pixelBuffer, withPresentationTime: lastTimestamp)
+        if assetWriter.isReadyForMoreMediaData {
+            assetWriter.append(buffer)
         }
+        
         // Add depth and camera data to buffer for saving later
         bufferDepthAndCameraData(depthData: depthData)
     }
+    
     
     private func bufferDepthAndCameraData(depthData: AVDepthData) {
         // Extract camera intrinsic matrix and view transform
@@ -284,6 +342,7 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
     private func resetRecordingState() {
         assetWriter = nil
         assetWriterInput = nil
+        audioWriterInput = nil
         assetWriterPixelBufferInput = nil
         bufferedDepthConversionData = []
     }
@@ -345,7 +404,6 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
         
         return String(format: "%04d", frameNumber)
     }
-
     
     func saveVideoToGallery(videoURL: URL) {
         // Request authorization if not already done
@@ -374,22 +432,30 @@ class CameraController: NSObject, ObservableObject, AVPlayerItemMetadataOutputPu
 }
 
 // AVCaptureDataOutputSynchronizerDelegate method to handle synchronized video and depth data.
-extension CameraController: AVCaptureDataOutputSynchronizerDelegate {
+extension CameraController: AVCaptureDataOutputSynchronizerDelegate, AVCaptureAudioDataOutputSampleBufferDelegate {
     
     func dataOutputSynchronizer(_ synchronizer: AVCaptureDataOutputSynchronizer,
                                 didOutput synchronizedDataCollection: AVCaptureSynchronizedDataCollection) {
         
-        // Retrieve the synchronized depth and sample buffer container objects.
+        guard let videoDataOutput = videoDataOutput,
+              let depthDataOutput = depthDataOutput else { return }
+        
+        
+        // Retrieve the synchronized depth, and video data
         guard let syncedDepthData = synchronizedDataCollection.synchronizedData(for: depthDataOutput) as? AVCaptureSynchronizedDepthData,
               let syncedVideoData = synchronizedDataCollection.synchronizedData(for: videoDataOutput) as? AVCaptureSynchronizedSampleBufferData else { return }
         
-        if syncedDepthData.depthDataWasDropped || syncedVideoData.sampleBufferWasDropped {
+        // Check if any data was dropped
+        if syncedDepthData.depthDataWasDropped || syncedVideoData.sampleBufferWasDropped  {
             return
         }
         
         let depthData = syncedDepthData.depthData
-        let sampleBuffer = syncedVideoData.sampleBuffer
-        guard let videoPixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer), let cameraCalibrationData = depthData.cameraCalibrationData else {
+        let videoSampleBuffer = syncedVideoData.sampleBuffer
+        
+        // Process video data
+        guard let videoPixelBuffer = CMSampleBufferGetImageBuffer(videoSampleBuffer),
+              let cameraCalibrationData = depthData.cameraCalibrationData else {
             return
         }
         
@@ -403,10 +469,46 @@ extension CameraController: AVCaptureDataOutputSynchronizerDelegate {
         
         captureDelegate?.onNewData(capturedData: data)
         
+        // Append video and depth data to recording
         guard isRecording else { return }
         DispatchQueue.main.async {
             self.timeReceiverDelegate?.onRecordingTimeUpdate(recordedTime: self.lastTimestamp)
         }
-        appendPixelBufferAndDepth(pixelBuffer: videoPixelBuffer, depthData: depthData, timestamp: CMSampleBufferGetPresentationTimeStamp(sampleBuffer))
+        appendVideoBufferAndDepth(buffer: videoSampleBuffer, depthData: depthData)
+    }
+    
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        if output == audioDataOutput {
+            guard let audioWriterInput = audioWriterInput else { return }
+            
+            // Ensure the audio writer input is ready for more data
+            if audioWriterInput.isReadyForMoreMediaData {
+                audioCaptureSession.synchronizeBuffer(sampleBuffer, toSession: captureSession)
+                audioWriterInput.append(sampleBuffer)
+            }
+        }
+    }
+}
+
+
+extension AVCaptureSession {
+    /**
+     Returns the clock that is used by this AVCaptureSession.
+     */
+    var clock: CMClock {
+        if #available(iOS 15.4, *), let synchronizationClock {
+            return synchronizationClock
+        }
+        
+        return masterClock ?? CMClockGetHostTimeClock()
+    }
+    
+    /**
+     Synchronizes a Buffer received from this [AVCaptureSession] to the timebase of the other given [AVCaptureSession].
+     */
+    func synchronizeBuffer(_ buffer: CMSampleBuffer, toSession to: AVCaptureSession) {
+        let timestamp = CMSampleBufferGetPresentationTimeStamp(buffer)
+        let synchronizedTimestamp = CMSyncConvertTime(timestamp, from: clock, to: to.clock)
+        CMSampleBufferSetOutputPresentationTimeStamp(buffer, newValue: synchronizedTimestamp)
     }
 }
