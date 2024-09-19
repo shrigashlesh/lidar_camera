@@ -2,8 +2,8 @@
 import 'dart:typed_data';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:vector_math/vector_math_64.dart';
-
 import 'package:lidar_camera/utils/json_converter.dart';
+import 'package:image/image.dart' as img;
 
 part 'depth_conversion_properties.g.dart';
 
@@ -35,7 +35,7 @@ class DepthConversionProperties {
       'DepthConversionProperties(transform: $transform, cameraIntrinsic: $cameraIntrinsic, depth: $depth)';
 
 // Decode depth data from byte array and return a 2D array (List of Lists)
-  List<List<double>> decodeDepthData() {
+  List<List<double>> get decodeDepthData {
     try {
       final ByteData byteData = ByteData.sublistView(depth);
 
@@ -63,5 +63,42 @@ class DepthConversionProperties {
     } catch (e) {
       return [];
     }
+  }
+
+  Uint8List get depthImage {
+    final ByteData byteData = ByteData.sublistView(depth);
+
+    // Extract the width and height (assuming they are stored as 32-bit integers at the start)
+    int width = byteData.getInt32(0, Endian.little);
+    int height = byteData.getInt32(4, Endian.little);
+
+    int depthDataStartIndex = 8; // Depth data starts after the width and height
+    num maxDepthValue = 5;
+
+    // Create an Image object using the image package
+    img.Image image = img.Image(width: width, height: height);
+
+    // Loop through the depth data and convert it to grayscale pixel values
+    for (int row = 0; row < height; row++) {
+      for (int col = 0; col < width; col++) {
+        int index = row * width + col;
+        int accessAt = depthDataStartIndex + index * 4;
+
+        // Get the depth value as a float (32-bit)
+        double depthValue = byteData.getFloat32(accessAt, Endian.little);
+
+        // Normalize depth value to a grayscale color (0-255 range)
+        int grayscale =
+            (depthValue * 255 / maxDepthValue).clamp(0, 255).toInt();
+
+        // Set the pixel color (grayscale) in the image
+        image.setPixelRgba(col, row, grayscale, grayscale, grayscale, 255);
+      }
+    }
+
+    // Encode the image to PNG format
+    Uint8List pngBytes = Uint8List.fromList(img.encodePng(image));
+
+    return pngBytes;
   }
 }

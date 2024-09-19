@@ -193,6 +193,7 @@ class CameraController: NSObject, ObservableObject {
             // Finalize and commit the session configuration.
             captureSession.commitConfiguration()
             audioCaptureSession.commitConfiguration()
+//            startStream()
         } catch {
             fatalError("Unable to configure the capture session.")
         }
