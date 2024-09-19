@@ -13,8 +13,6 @@ class CameraManager: ObservableObject, CaptureDataReceiver, CaptureTimeReceiver 
             controller.isFilteringEnabled = isFilteringDepth
         }
     }
-    @Published var orientation = UIDevice.current.orientation
-    @Published var processingCapturedResult = false
     @Published var dataAvailable = false
     @Published var isRecording: Bool {
         didSet {
@@ -22,7 +20,6 @@ class CameraManager: ObservableObject, CaptureDataReceiver, CaptureTimeReceiver 
         }
     }
     let controller: CameraController
-    var cancellables = Set<AnyCancellable>()
     
     init() {
         // Initialize capturedData and controller
@@ -47,16 +44,14 @@ class CameraManager: ObservableObject, CaptureDataReceiver, CaptureTimeReceiver 
     
     func onNewData(capturedData: CameraCapturedData) {
         DispatchQueue.main.async {
-            if !self.processingCapturedResult {
-                // Update captured data for views
-                self.capturedData.depth = capturedData.depth
-                self.capturedData.colorY = capturedData.colorY
-                self.capturedData.colorCbCr = capturedData.colorCbCr
-                self.capturedData.cameraIntrinsics = capturedData.cameraIntrinsics
-                self.capturedData.cameraReferenceDimensions = capturedData.cameraReferenceDimensions
-                if !self.dataAvailable {
-                    self.dataAvailable = true
-                }
+            // Update captured data for views
+            self.capturedData.depth = capturedData.depth
+            self.capturedData.colorY = capturedData.colorY
+            self.capturedData.colorCbCr = capturedData.colorCbCr
+            self.capturedData.cameraIntrinsics = capturedData.cameraIntrinsics
+            self.capturedData.cameraReferenceDimensions = capturedData.cameraReferenceDimensions
+            if !self.dataAvailable {
+                self.dataAvailable = true
             }
         }
     }
@@ -66,7 +61,7 @@ class CameraManager: ObservableObject, CaptureDataReceiver, CaptureTimeReceiver 
     }
     
     func cleanup() {
-        controller.stopStream()
+        print("CAMERA MANAGER CLEANUP")
         controller.captureDelegate = nil
         controller.timeReceiverDelegate = nil
     }

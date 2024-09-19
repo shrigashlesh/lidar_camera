@@ -14,7 +14,7 @@ protocol CaptureTimeReceiver: AnyObject {
 }
 
 class CameraController: NSObject, ObservableObject {
-
+    
     // Desired video resolution for capture.
     private let preferredWidthResolution = 1080
     private let preferredHeightResolution = 1920
@@ -88,57 +88,50 @@ class CameraController: NSObject, ObservableObject {
     }
     
     private func cleanup() {
-         // Stop capture sessions
-         captureSession?.stopRunning()
-         audioCaptureSession?.stopRunning()
-         
-         // Release capture session objects
-         captureSession = nil
-         audioCaptureSession = nil
-         
-         // Release outputs
-         depthDataOutput = nil
-         videoDataOutput = nil
-         audioDataOutput = nil
-         
-         // Release synchronizer
-         outputVideoSync = nil
-         
-         // Release Metal texture cache
-         if let textureCache = textureCache {
-             CVMetalTextureCacheFlush(textureCache, 0)
-             self.textureCache = nil
-         }
-         
-         // Release AVAssetWriter components
-         assetWriterInput?.markAsFinished()
-         audioWriterInput?.markAsFinished()
-         assetWriter?.finishWriting {
-             self.assetWriter = nil
-             self.assetWriterInput = nil
-             self.audioWriterInput = nil
-         }
-         
-         // Release buffered depth conversion data
-         bufferedDepthConversionData.removeAll()
-         
-         // Optionally reset timestamps
-         lastTimestamp = .zero
-         presentationTimestamp = .zero
-         
-         // Release delegates
-         captureDelegate = nil
-         timeReceiverDelegate = nil
-         
-     }
-     
-     deinit {
-         cleanup()
-     }
+        print("CAMERA CONTROLLER CLEANUP")
+        
+        // Stop capture sessions
+        captureSession?.stopRunning()
+        audioCaptureSession?.stopRunning()
+        
+        // Release capture session objects
+        captureSession = nil
+        audioCaptureSession = nil
+        
+        // Release outputs
+        depthDataOutput = nil
+        videoDataOutput = nil
+        audioDataOutput = nil
+        
+        // Release synchronizer
+        outputVideoSync = nil
+        
+        // Release Metal texture cache
+        if let textureCache = textureCache {
+            CVMetalTextureCacheFlush(textureCache, 0)
+            self.textureCache = nil
+        }
+        
+        // Release AVAssetWriter components
+        assetWriterInput?.markAsFinished()
+        audioWriterInput?.markAsFinished()
+        assetWriter?.finishWriting {
+            
+        }
+        resetRecordingState()
+        
+        // Release delegates
+        captureDelegate = nil
+        timeReceiverDelegate = nil
+    }
+    
+    deinit {
+        cleanup()
+    }
     
     func checkAuthorization() {
         let dispatchGroup = DispatchGroup()
-
+        
         // Check video authorization status
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
@@ -170,7 +163,7 @@ class CameraController: NSObject, ObservableObject {
         @unknown default:
             break
         }
-
+        
         // Wait for both permissions to be processed
         dispatchGroup.notify(queue: .main) { [weak self] in
             if self?.videoPermissionGranted == true && self?.microphonePermissionGranted == true {
@@ -293,12 +286,6 @@ class CameraController: NSObject, ObservableObject {
         DispatchQueue.global(qos: .background).async {
             self.captureSession?.startRunning()
         }
-    }
-    
-    // Stop the camera stream.
-    func stopStream() {
-        captureSession?.stopRunning()
-        audioCaptureSession?.stopRunning()
     }
     
     // Start recording video, setting up the asset writer.
