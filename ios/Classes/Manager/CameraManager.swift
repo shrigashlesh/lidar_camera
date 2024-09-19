@@ -33,7 +33,6 @@ class CameraManager: ObservableObject, CaptureDataReceiver, CaptureTimeReceiver 
         isFilteringDepth = false
         
         // Start streaming and set delegates
-        controller.startStream()
         controller.captureDelegate = self
         controller.timeReceiverDelegate = self
     }

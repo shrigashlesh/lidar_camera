@@ -30,7 +30,7 @@ extension CameraController{
                 // allow system sounds (notifications, calls, music) to play while recording
                 try audioSession.setAllowHapticsAndSystemSoundsDuringRecording(true)
             }
-            audioCaptureSession.startRunning()
+            audioCaptureSession?.startRunning()
         } catch let error as NSError {
             switch error.code {
             case 561_017_449:
@@ -42,6 +42,6 @@ extension CameraController{
     }
     
     final func deactivateAudioSession() {
-        audioCaptureSession.stopRunning()
+        audioCaptureSession?.stopRunning()
     }
 }

@@ -7,6 +7,9 @@
 import SwiftUI
 import MetalKit
 import Metal
+import SwiftUI
+import MetalKit
+import Metal
 
 struct LidarCamera: View {
     @StateObject private var manager = CameraManager()
@@ -39,12 +42,16 @@ struct LidarCamera: View {
                     isRecording: isRecording
                 )
                 Spacer()
-                RecordButton(isRecording: $isRecording) {
-                    manager.startRecording()
-                } stopAction: {
-                    manager.outputVideoRecording()
+                
+                // Show the record button only if data is available
+                if manager.dataAvailable {
+                    RecordButton(isRecording: $isRecording) {
+                        manager.startRecording()
+                    } stopAction: {
+                        manager.outputVideoRecording()
+                    }
+                    .frame(width: 70, height: 70)
                 }
-                .frame(width: 70, height: 70)
             }.padding(EdgeInsets(top: 10, leading: 0, bottom: 10, trailing: 0))
         }
         .onDisappear {

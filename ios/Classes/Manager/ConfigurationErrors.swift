@@ -7,6 +7,7 @@
 
 import Foundation
 enum ConfigurationError: Error {
+    case sessionUnavailable
     case lidarDeviceUnavailable
     case requiredFormatUnavailable
     case micUnavailable

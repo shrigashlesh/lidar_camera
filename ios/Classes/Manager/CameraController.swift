@@ -24,8 +24,8 @@ class CameraController: NSObject, ObservableObject {
     private let audioQueue = DispatchQueue(label: "lidar_camera_audioQueue", qos: .userInteractive)
     
     // Capture session object to manage input/output.
-    private(set) var captureSession: AVCaptureSession!
-    private(set) var audioCaptureSession: AVCaptureSession!
+    private(set) var captureSession: AVCaptureSession?
+    private(set) var audioCaptureSession: AVCaptureSession?
     
     // Outputs for depth data and video data.
     private var depthDataOutput: AVCaptureDepthDataOutput?
@@ -89,8 +89,8 @@ class CameraController: NSObject, ObservableObject {
     
     private func cleanup() {
          // Stop capture sessions
-         captureSession.stopRunning()
-         audioCaptureSession.stopRunning()
+         captureSession?.stopRunning()
+         audioCaptureSession?.stopRunning()
          
          // Release capture session objects
          captureSession = nil
@@ -137,16 +137,18 @@ class CameraController: NSObject, ObservableObject {
      }
     
     func checkAuthorization() {
+        let dispatchGroup = DispatchGroup()
+
         // Check video authorization status
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
             videoPermissionGranted = true
         case .notDetermined:
-            AVCaptureDevice.requestAccess(for: .video) { (granted) in
-                self.videoPermissionGranted = granted
-                self.checkAndSetupSession()
+            dispatchGroup.enter()  // Enter the dispatch group
+            AVCaptureDevice.requestAccess(for: .video) { [weak self] (granted) in
+                self?.videoPermissionGranted = granted
+                dispatchGroup.leave()  // Leave the dispatch group when done
             }
-            return // Exit early as we need to wait for the video permission request
         case .denied, .restricted:
             videoPermissionGranted = false
         @unknown default:
@@ -157,43 +159,48 @@ class CameraController: NSObject, ObservableObject {
         switch AVAudioSession.sharedInstance().recordPermission {
         case .granted:
             microphonePermissionGranted = true
-            checkAndSetupSession()
         case .undetermined:
-            AVAudioSession.sharedInstance().requestRecordPermission { (granted) in
-                self.microphonePermissionGranted = granted
-                self.checkAndSetupSession()
+            dispatchGroup.enter()  // Enter the dispatch group
+            AVAudioSession.sharedInstance().requestRecordPermission { [weak self] (granted) in
+                self?.microphonePermissionGranted = granted
+                dispatchGroup.leave()  // Leave the dispatch group when done
             }
         case .denied:
             microphonePermissionGranted = false
         @unknown default:
             break
         }
-    }
-    
-    private func checkAndSetupSession() {
-        if videoPermissionGranted && microphonePermissionGranted {
-            setupSession()
+
+        // Wait for both permissions to be processed
+        dispatchGroup.notify(queue: .main) { [weak self] in
+            if self?.videoPermissionGranted == true && self?.microphonePermissionGranted == true {
+                self?.setupSession()  // Only setup the session if both permissions are granted
+            }
         }
     }
+    
     
     // Set up the capture session with camera inputs and outputs.
     private func setupSession() {
         do {
             captureSession = AVCaptureSession()
-            captureSession.sessionPreset = .hd1920x1080
             audioCaptureSession = AVCaptureSession()
+            guard let captureSession = captureSession,let audioCaptureSession = audioCaptureSession else {
+                throw ConfigurationError.sessionUnavailable
+            }
+            captureSession.sessionPreset = .hd1920x1080
             audioCaptureSession.automaticallyConfiguresApplicationAudioSession = false
             // Begin configuration before adding inputs/outputs.
             captureSession.beginConfiguration()
             audioCaptureSession.beginConfiguration()
             
             try setupCaptureInput()  // Configure the camera input.
-            setupCaptureOutputs()    // Configure video and depth outputs.
+            try setupCaptureOutputs()    // Configure video and depth outputs.
             
             // Finalize and commit the session configuration.
             captureSession.commitConfiguration()
             audioCaptureSession.commitConfiguration()
-//            startStream()
+            startStream()
         } catch {
             fatalError("Unable to configure the capture session.")
         }
@@ -201,6 +208,9 @@ class CameraController: NSObject, ObservableObject {
     
     // Set up the camera input (LiDAR) for depth data, video, and audio.
     private func setupCaptureInput() throws {
+        guard let captureSession = captureSession,let audioCaptureSession = audioCaptureSession else {
+            throw ConfigurationError.sessionUnavailable
+        }
         // Ensure the LiDAR camera is available.
         guard let lidarDevice = AVCaptureDevice.default(.builtInLiDARDepthCamera, for: .video, position: .back) else {
             throw ConfigurationError.lidarDeviceUnavailable
@@ -242,7 +252,10 @@ class CameraController: NSObject, ObservableObject {
     }
     
     // Set up the outputs for video, depth data, and audio.
-    private func setupCaptureOutputs() {
+    private func setupCaptureOutputs() throws{
+        guard let captureSession = captureSession,let audioCaptureSession = audioCaptureSession else {
+            throw ConfigurationError.sessionUnavailable
+        }
         // Configure the video data output for the session.
         videoDataOutput = AVCaptureVideoDataOutput()
         guard let videoDataOutput = videoDataOutput else {return}
@@ -278,14 +291,14 @@ class CameraController: NSObject, ObservableObject {
     // Start the camera stream.
     func startStream() {
         DispatchQueue.global(qos: .background).async {
-            self.captureSession.startRunning()
+            self.captureSession?.startRunning()
         }
     }
     
     // Stop the camera stream.
     func stopStream() {
-        captureSession.stopRunning()
-        audioCaptureSession.stopRunning()
+        captureSession?.stopRunning()
+        audioCaptureSession?.stopRunning()
     }
     
     // Start recording video, setting up the asset writer.
@@ -323,7 +336,7 @@ class CameraController: NSObject, ObservableObject {
             // Start writing session for video and metadata.
             if let assetWriter = assetWriter,
                let assetWriterInput = assetWriterInput ,
-               let audioWriterInput = audioWriterInput
+               let audioWriterInput = audioWriterInput, let captureSession = captureSession
                 
             {
                 bufferedDepthConversionData = []
@@ -520,7 +533,7 @@ extension CameraController: AVCaptureDataOutputSynchronizerDelegate, AVCaptureAu
     
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
         if output == audioDataOutput {
-            guard let audioWriterInput = audioWriterInput else { return }
+            guard let audioWriterInput = audioWriterInput, let captureSession = captureSession, let audioCaptureSession = audioCaptureSession else { return }
             
             // Ensure the audio writer input is ready for more data
             if audioWriterInput.isReadyForMoreMediaData {
