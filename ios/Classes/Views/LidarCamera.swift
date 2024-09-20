@@ -26,36 +26,37 @@ struct LidarCamera: View {
         GeometryReader{geometry in
             ZStack {
                 Color.black.edgesIgnoringSafeArea(.all)
-                
-                if manager.dataAvailable {     VStack {
-                    let width = geometry.size.width
-                    let height = width * 16 / 9 // 4:3 aspect ratio
-                    // Metal view that displays the depth data
+                if manager.dataAvailable {  VStack {
                     RecordedTimeView(
                         positionalTime: manager.recordedTime.positionalTime,
                         isRecording: isRecording
                     )
-                    Spacer()
-
-                    MetalTextureDepthView(
-                        rotationAngle: CGFloat(-Double.pi/2),
-                        maxDepth: $maxDepth,
-                        minDepth: $minDepth,
-                        capturedData: manager.capturedData
-                    ).clipShape(RoundedRectangle(cornerRadius: previewCornerRadius))
-                        .frame(width: width, height: height)
                     
                     
-                    Spacer()
-
-                    RecordButton(isRecording: $isRecording) {
-                        manager.startRecording()
-                    } stopAction: {
-                        manager.outputVideoRecording()
-                    }
-                    .frame(width: 70, height: 70)
-                    
-                }.padding(EdgeInsets(top: 10, leading: 0, bottom: 10, trailing: 0))
+                    ZStack {
+                        let width = geometry.size.width
+                        let height = geometry.size.height
+                        
+                        MetalTextureColorThresholdDepthView(
+                            rotationAngle: CGFloat(-Double.pi/2),
+                            maxDepth: $maxDepth,
+                            minDepth: $minDepth,
+                            capturedData: manager.capturedData
+                        ).clipShape(RoundedRectangle(cornerRadius: previewCornerRadius))
+                            .frame(width: width, height: height)
+                        
+                        VStack{
+                            Spacer()
+                            
+                            RecordButton(isRecording: $isRecording) {
+                                manager.startRecording()
+                            } stopAction: {
+                                manager.outputVideoRecording()
+                            }
+                            .frame(width: 70, height: 70).padding(EdgeInsets(top: 0, leading: 0, bottom: 40, trailing: 0))
+                        }
+                    }.ignoresSafeArea()
+                }
                 }
             }
         }

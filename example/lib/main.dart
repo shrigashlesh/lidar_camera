@@ -78,47 +78,54 @@ class _PickerViewState extends State<PickerView> {
         title: const Text("Picker View"),
       ),
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            if (depthImageBytes != null)
-              Image.memory(
-                depthImageBytes!,
-                height: 320,
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              if (depthImageBytes != null)
+                Image.memory(
+                  depthImageBytes!,
+                  height: 600,
+                  fit: BoxFit.contain,
+                ),
+              ElevatedButton(
+                onPressed: () async {
+                  final List<AssetEntity>? result =
+                      await AssetPicker.pickAssets(
+                    context,
+                    pickerConfig: const AssetPickerConfig(
+                      maxAssets: 1,
+                      shouldAutoplayPreview: true,
+                      specialPickerType: SpecialPickerType.noPreview,
+                      textDelegate: AssetPickerTextDelegate(),
+                      requestType: RequestType.video,
+                    ),
+                  );
+                  final file = result?.firstOrNull;
+                  if (file == null) return;
+                  final fileName = await file.titleAsync;
+                  final cleanedName = fileName.split('.').first;
+                  final LidarCamera cam = LidarCamera();
+                  final properties = await cam.readDepthConversionData(
+                    fileName: cleanedName,
+                    frameNumber: 10,
+                  );
+                  if (properties == null) return;
+                  final bytes = properties.depthImage;
+                  if (!mounted) return;
+                  setState(() {
+                    depthImageBytes = bytes;
+                  });
+                },
+                child: const Text("Pick Video"),
+                // D33BAC4E-1514-40A9-B55A-59F290F321A3
               ),
-            ElevatedButton(
-              onPressed: () async {
-                final List<AssetEntity>? result = await AssetPicker.pickAssets(
-                  context,
-                  pickerConfig: const AssetPickerConfig(
-                    maxAssets: 1,
-                    shouldAutoplayPreview: true,
-                    specialPickerType: SpecialPickerType.noPreview,
-                    textDelegate: AssetPickerTextDelegate(),
-                    requestType: RequestType.video,
-                  ),
-                );
-                final file = result?.firstOrNull;
-                if (file == null) return;
-                final fileName = await file.titleAsync;
-                final cleanedName = fileName.split('.').first;
-                final LidarCamera cam = LidarCamera();
-                final properties = await cam.readDepthConversionData(
-                  fileName: cleanedName,
-                  frameNumber: 10,
-                );
-                if (properties == null) return;
-                final bytes = properties.depthImage;
-                if (!mounted) return;
-                setState(() {
-                  depthImageBytes = bytes;
-                });
-              },
-              child: const Text("Pick Video"),
-              // D33BAC4E-1514-40A9-B55A-59F290F321A3
-            ),
-          ],
+              const SizedBox(
+                height: 20,
+              )
+            ],
+          ),
         ),
       ),
     );
