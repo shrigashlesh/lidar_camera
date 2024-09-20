@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import tiff_ios
 
 public struct DepthConversionData {
     let depth: Data

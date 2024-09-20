@@ -4,12 +4,14 @@ PODS:
     - Flutter
   - lidar_camera (0.0.1):
     - Flutter
+    - tiff-ios (= 4.0.1)
   - path_provider_foundation (0.0.1):
     - Flutter
     - FlutterMacOS
   - photo_manager (2.0.0):
     - Flutter
     - FlutterMacOS
+  - tiff-ios (4.0.1)
   - video_player_avfoundation (0.0.1):
     - Flutter
     - FlutterMacOS
@@ -21,6 +23,10 @@ DEPENDENCIES:
   - path_provider_foundation (from `.symlinks/plugins/path_provider_foundation/darwin`)
   - photo_manager (from `.symlinks/plugins/photo_manager/ios`)
   - video_player_avfoundation (from `.symlinks/plugins/video_player_avfoundation/darwin`)
+
+SPEC REPOS:
+  trunk:
+    - tiff-ios
 
 EXTERNAL SOURCES:
   Flutter:
@@ -39,9 +45,10 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
   integration_test: 252f60fa39af5e17c3aa9899d35d908a0721b573
-  lidar_camera: 94b39d6f7f3c7c95c6b62bf4a1f51acbff8bccb4
+  lidar_camera: c18e0c3fd003efe0ca8c741ff8c0b926f1bd9bdf
   path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
   photo_manager: ff695c7a1dd5bc379974953a2b5c0a293f7c4c8a
+  tiff-ios: 6f74cf7fefc371e2523807ea38cd808fd594f86b
   video_player_avfoundation: 7c6c11d8470e1675df7397027218274b6d2360b3
 
 PODFILE CHECKSUM: 819463e6a0290f5a72f145ba7cde16e8b6ef0796

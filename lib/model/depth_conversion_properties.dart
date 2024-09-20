@@ -68,31 +68,31 @@ class DepthConversionProperties {
   Uint8List get depthImage {
     final ByteData byteData = ByteData.sublistView(depth);
 
-    // Extract the width and height (assuming they are stored as 32-bit integers at the start)
+    // Extract the width and height directly from the depth map
     int width = byteData.getInt32(0, Endian.little);
     int height = byteData.getInt32(4, Endian.little);
 
     int depthDataStartIndex = 8; // Depth data starts after the width and height
-    num maxDepthValue = 5;
+    num maxDepthValue = 5; // Maximum expected depth value for normalization
 
-    // Create an Image object using the image package
+    // Create an Image object using the image package with the original dimensions
     img.Image image = img.Image(width: width, height: height);
 
-    // Loop through the depth data and convert it to grayscale pixel values
-    for (int row = 0; row < height; row++) {
-      for (int col = 0; col < width; col++) {
-        int index = row * width + col;
-        int accessAt = depthDataStartIndex + index * 4;
+    for (int y = 0; y < height; y++) {
+      for (int x = 0; x < width; x++) {
+        int originalIndex = y * width + x;
+        int accessAt = depthDataStartIndex + originalIndex * 4;
 
         // Get the depth value as a float (32-bit)
         double depthValue = byteData.getFloat32(accessAt, Endian.little);
 
-        // Normalize depth value to a grayscale color (0-255 range)
+        // Normalize the depth value to grayscale (0-255 range)
         int grayscale =
             (depthValue * 255 / maxDepthValue).clamp(0, 255).toInt();
 
         // Set the pixel color (grayscale) in the image
-        image.setPixelRgba(col, row, grayscale, grayscale, grayscale, 255);
+        image.setPixelRgba(x, y, grayscale, grayscale, grayscale,
+            255); // Set with rotated indices
       }
     }
 

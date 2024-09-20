@@ -13,7 +13,7 @@ import Metal
 
 struct LidarCamera: View {
     @StateObject private var manager = CameraManager()
-    
+    let previewCornerRadius: CGFloat = 15.0
     @State private var maxDepth = Float(5.0)
     @State private var minDepth = Float(0.0)
     @State private var scaleMovement = Float(1.0)
@@ -23,36 +23,41 @@ struct LidarCamera: View {
     @State var isRecording = false
     
     var body: some View {
-        ZStack {
-            // Metal view that displays the depth data
-            if manager.dataAvailable {
-                MetalTextureColorZapView(
-                    rotationAngle: CGFloat(-Double.pi / 2),
-                    maxDepth: $maxDepth,
-                    minDepth: $minDepth,
-                    capturedData: manager.capturedData
-                )
-                .aspectRatio(9/16, contentMode: .fill)
-                .clipped()
-            }
-            
-            VStack {
-                RecordedTimeView(
-                    positionalTime: manager.recordedTime.positionalTime,
-                    isRecording: isRecording
-                )
-                Spacer()
+        GeometryReader{geometry in
+            ZStack {
+                Color.black.edgesIgnoringSafeArea(.all)
                 
-                // Show the record button only if data is available
-                if manager.dataAvailable {
+                if manager.dataAvailable {     VStack {
+                    let width = geometry.size.width
+                    let height = width * 16 / 9 // 4:3 aspect ratio
+                    // Metal view that displays the depth data
+                    RecordedTimeView(
+                        positionalTime: manager.recordedTime.positionalTime,
+                        isRecording: isRecording
+                    )
+                    Spacer()
+
+                    MetalTextureDepthView(
+                        rotationAngle: CGFloat(-Double.pi/2),
+                        maxDepth: $maxDepth,
+                        minDepth: $minDepth,
+                        capturedData: manager.capturedData
+                    ).clipShape(RoundedRectangle(cornerRadius: previewCornerRadius))
+                        .frame(width: width, height: height)
+                    
+                    
+                    Spacer()
+
                     RecordButton(isRecording: $isRecording) {
                         manager.startRecording()
                     } stopAction: {
                         manager.outputVideoRecording()
                     }
                     .frame(width: 70, height: 70)
+                    
+                }.padding(EdgeInsets(top: 10, leading: 0, bottom: 10, trailing: 0))
                 }
-            }.padding(EdgeInsets(top: 10, leading: 0, bottom: 10, trailing: 0))
+            }
         }
     }
 }

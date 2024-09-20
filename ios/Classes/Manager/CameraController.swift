@@ -2,6 +2,7 @@ import UIKit
 import AVFoundation
 import CoreImage
 import Photos
+import tiff_ios
 
 // Protocol to notify when new camera data is captured.
 protocol CaptureDataReceiver: AnyObject {
@@ -16,8 +17,8 @@ protocol CaptureTimeReceiver: AnyObject {
 class CameraController: NSObject, ObservableObject {
     
     // Desired video resolution for capture.
-    private let preferredWidthResolution = 1080
-    private let preferredHeightResolution = 1920
+    private let preferredWidthResolution = 1920
+    private let preferredHeightResolution = 1080
     
     // Queue to handle video processing with high priority.
     private let videoQueue = DispatchQueue(label: "lidar_camera_videoQueue", qos: .userInteractive)
@@ -56,7 +57,7 @@ class CameraController: NSObject, ObservableObject {
     private var microphonePermissionGranted = false
     
     // Property to enable or disable depth filtering.
-    var isFilteringEnabled = false {
+    var isFilteringEnabled = true {
         didSet {
             depthDataOutput?.isFilteringEnabled = isFilteringEnabled
         }
@@ -195,7 +196,8 @@ class CameraController: NSObject, ObservableObject {
             audioCaptureSession.commitConfiguration()
             startStream()
         } catch {
-            fatalError("Unable to configure the capture session.")
+            
+            print("Unable to configure the capture session.")
         }
     }
     
@@ -208,27 +210,37 @@ class CameraController: NSObject, ObservableObject {
         guard let lidarDevice = AVCaptureDevice.default(.builtInLiDARDepthCamera, for: .video, position: .back) else {
             throw ConfigurationError.lidarDeviceUnavailable
         }
-        
-        // Find a suitable format for video that meets the required resolution.
-        guard let format = (lidarDevice.formats.last { format in
-            format.formatDescription.mediaSubType.rawValue == kCVPixelFormatType_420YpCbCr8BiPlanarFullRange &&
+
+        // Filter formats that match the required resolution and other conditions.
+        let matchingFormats = lidarDevice.formats.filter {format in
+            format.formatDescription.mediaSubType.rawValue == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange &&
+            format.formatDescription.dimensions.width == preferredWidthResolution &&
             !format.isVideoBinned &&
             !format.supportedDepthDataFormats.isEmpty
-        }) else {
+        }
+        // Find the first suitable format.
+        guard let format = matchingFormats.first else {
             throw ConfigurationError.requiredFormatUnavailable
         }
         
         // Find a suitable depth data format.
-        guard let depthFormat = (format.supportedDepthDataFormats.last { depthFormat in
-            depthFormat.formatDescription.mediaSubType.rawValue == kCVPixelFormatType_DepthFloat32
-        }) else {
+        let depthFormats = format.supportedDepthDataFormats
+        let depth32formats = depthFormats.filter({
+            CMFormatDescriptionGetMediaSubType($0.formatDescription) == kCVPixelFormatType_DepthFloat16
+        })
+        
+        if depth32formats.isEmpty {
+            print("Device does not support Float16 depth format")
             throw ConfigurationError.requiredFormatUnavailable
         }
+        let selectedDepthFormat = depth32formats.max(by: { first, second in
+            CMVideoFormatDescriptionGetDimensions(first.formatDescription).width <
+                CMVideoFormatDescriptionGetDimensions(second.formatDescription).width })
         
         // Lock the device for configuration and set the formats.
         try lidarDevice.lockForConfiguration()
         lidarDevice.activeFormat = format
-        lidarDevice.activeDepthDataFormat = depthFormat
+        lidarDevice.activeDepthDataFormat = selectedDepthFormat
         lidarDevice.unlockForConfiguration()
         
         // Add the camera input to the capture session.
@@ -299,9 +311,9 @@ class CameraController: NSObject, ObservableObject {
             assetWriter = try AVAssetWriter(outputURL: outputURL, fileType: .mov)
             // Configure video settings.
             let videoSettings: [String: Any] = [
-                AVVideoCodecKey: AVVideoCodecType.h264,
-                AVVideoWidthKey: preferredWidthResolution,
-                AVVideoHeightKey: preferredHeightResolution
+                AVVideoCodecKey: AVVideoCodecType.hevc,
+                AVVideoWidthKey: preferredHeightResolution,
+                AVVideoHeightKey: preferredWidthResolution
             ]
             
             // Audio settings.
@@ -365,12 +377,12 @@ class CameraController: NSObject, ObservableObject {
         
         let cameraIntrinsicMatrix = serializeMatrixToData(cameraCalibrationData.intrinsicMatrix)
         let viewTransformMatrix = serializeMatrixToData(cameraCalibrationData.extrinsicMatrix)
-        guard let depthValues = depthData.asBytes() else {
+        guard let depthBytes = depthData.asBytes() else {
             return
         }
         // Create an instance of DepthConversionData
         let depthConversionData = DepthConversionData(
-            depth: depthValues,
+            depth: depthBytes,
             cameraIntrinsic: cameraIntrinsicMatrix,
             viewTransform: viewTransformMatrix,
             timeStamp: CMTimeGetSeconds(lastTimestamp)

@@ -27,7 +27,7 @@ class CameraManager: ObservableObject, CaptureDataReceiver, CaptureTimeReceiver 
         recordedTime = .zero
         controller = CameraController()
         isRecording = false
-        isFilteringDepth = false
+        isFilteringDepth = true
         
         // Start streaming and set delegates
         controller.captureDelegate = self
