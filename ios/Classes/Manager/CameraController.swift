@@ -2,7 +2,6 @@ import UIKit
 import AVFoundation
 import CoreImage
 import Photos
-import tiff_ios
 
 // Protocol to notify when new camera data is captured.
 protocol CaptureDataReceiver: AnyObject {

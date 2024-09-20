@@ -7,7 +7,6 @@
 
 import Foundation
 import AVFoundation
-import tiff_ios
 extension AVDepthData {
     func asBytes() -> Data? {
         let convertedDepthData = converting(toDepthDataType: kCVPixelFormatType_DepthFloat32)
@@ -50,55 +49,4 @@ extension AVDepthData {
         CVPixelBufferUnlockBaseAddress(depthMap, .readOnly)
         return depthData
     }
-    
-    func asTiff() -> TIFFImage? {
-        let depthMap = depthDataMap
-        let width = CVPixelBufferGetWidth(depthMap)
-        let height = CVPixelBufferGetHeight(depthMap)
-        
-        CVPixelBufferLockBaseAddress(depthMap, CVPixelBufferLockFlags(rawValue: 0))
-        guard let baseAddress = CVPixelBufferGetBaseAddress(depthMap) else {
-            CVPixelBufferUnlockBaseAddress(depthMap, CVPixelBufferLockFlags(rawValue: 0))
-            return nil
-        }
-        let bytesPerRow = CVPixelBufferGetBytesPerRow(depthMap)
-        
-        guard let rasters = TIFFRasters(width: Int32(width), andHeight: Int32(height), andSamplesPerPixel: 1, andSingleBitsPerSample: 32) else {
-            CVPixelBufferUnlockBaseAddress(depthMap, CVPixelBufferLockFlags(rawValue: 0))
-            return nil
-        }
-        
-        for y in 0..<height {
-            let pixelBytes = baseAddress.advanced(by: y * bytesPerRow)
-            let pixelBuffer = UnsafeBufferPointer<Float>(start: pixelBytes.assumingMemoryBound(to: Float.self), count: width)
-            for x in 0..<width {
-                rasters.setFirstPixelSampleAtX(Int32(x), andY: Int32(y), withValue: NSDecimalNumber(value: pixelBuffer[x]))
-            }
-        }
-        
-        CVPixelBufferUnlockBaseAddress(depthMap, CVPixelBufferLockFlags(rawValue: 0))
-        
-        let rowsPerStrip = UInt16(rasters.calculateRowsPerStrip(withPlanarConfiguration: Int32(TIFF_PLANAR_CONFIGURATION_CHUNKY)))
-        
-        guard let directory = TIFFFileDirectory() else {
-            return nil
-        }
-        directory.setImageWidth(UInt16(width))
-        directory.setImageHeight(UInt16(height))
-        directory.setBitsPerSampleAsSingleValue(32)
-        directory.setCompression(UInt16(TIFF_COMPRESSION_NO))
-        directory.setPhotometricInterpretation(UInt16(TIFF_PHOTOMETRIC_INTERPRETATION_BLACK_IS_ZERO))
-        directory.setSamplesPerPixel(1)
-        directory.setRowsPerStrip(rowsPerStrip)
-        directory.setPlanarConfiguration(UInt16(TIFF_PLANAR_CONFIGURATION_CHUNKY))
-        directory.setSampleFormatAsSingleValue(UInt16(TIFF_SAMPLE_FORMAT_FLOAT))
-        directory.writeRasters = rasters
-        
-        guard let tiffImage = TIFFImage() else {
-            return nil
-        }
-        tiffImage.addFileDirectory(directory)
-        return tiffImage
-    }
-
 }
