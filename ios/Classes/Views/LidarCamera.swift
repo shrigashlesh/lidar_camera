@@ -20,43 +20,44 @@ struct LidarCamera: View {
     
     let maxRangeDepth = Float(15)
     let minRangeDepth = Float(0)
-    @State var isRecording = false
-    
+
     var body: some View {
-        GeometryReader{geometry in
+        GeometryReader { geometry in
             ZStack {
                 Color.black.edgesIgnoringSafeArea(.all)
-                if manager.dataAvailable {  VStack {
-                    RecordedTimeView(
-                        positionalTime: manager.recordedTime.positionalTime,
-                        isRecording: isRecording
-                    )
-                    
-                    
-                    ZStack {
-                        let width = geometry.size.width
-                        let height = geometry.size.height
-                        
-                        MetalTextureColorThresholdDepthView(
-                            rotationAngle: CGFloat(-Double.pi/2),
-                            maxDepth: $maxDepth,
-                            minDepth: $minDepth,
-                            capturedData: manager.capturedData
-                        ).clipShape(RoundedRectangle(cornerRadius: previewCornerRadius))
+                
+                if manager.dataAvailable {
+                    VStack {
+                        RecordedTimeView(
+                            positionalTime: manager.recordedTime.positionalTime,
+                            isRecording: manager.isRecording
+                        )
+
+                        ZStack {
+                            let width = geometry.size.width
+                            let height = geometry.size.height
+
+                            MetalTextureColorThresholdDepthView(
+                                rotationAngle: CGFloat(-Double.pi/2),
+                                maxDepth: $maxDepth,
+                                minDepth: $minDepth,
+                                capturedData: manager.capturedData
+                            )
+                            .clipShape(RoundedRectangle(cornerRadius: previewCornerRadius))
                             .frame(width: width, height: height)
-                        
-                        VStack{
-                            Spacer()
-                            
-                            RecordButton(isRecording: $isRecording) {
-                                manager.startRecording()
-                            } stopAction: {
-                                manager.outputVideoRecording()
+
+                            VStack {
+                                Spacer()
+                                
+                                RecordButton(isRecording: $manager.isRecording) {
+                                } stopAction: {
+                                }
+                                .frame(width: 70, height: 70)
+                                .padding(EdgeInsets(top: 0, leading: 0, bottom: 40, trailing: 0))
                             }
-                            .frame(width: 70, height: 70).padding(EdgeInsets(top: 0, leading: 0, bottom: 40, trailing: 0))
                         }
-                    }.ignoresSafeArea()
-                }
+                        .ignoresSafeArea()
+                    }
                 }
             }
         }

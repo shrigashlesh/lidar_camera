@@ -46,7 +46,6 @@ class CameraController: NSObject, ObservableObject {
     
     // Timestamp to manage frame timing during video recording.
     private var lastTimestamp: CMTime = .zero
-    private var presentationTimestamp: CMTime = .zero
     
     // Delegate to notify when new captured data is available.
     weak var captureDelegate: CaptureDataReceiver?
@@ -209,7 +208,7 @@ class CameraController: NSObject, ObservableObject {
         guard let lidarDevice = AVCaptureDevice.default(.builtInLiDARDepthCamera, for: .video, position: .back) else {
             throw ConfigurationError.lidarDeviceUnavailable
         }
-
+        
         // Filter formats that match the required resolution and other conditions.
         let matchingFormats = lidarDevice.formats.filter {format in
             format.formatDescription.mediaSubType.rawValue == kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange &&

@@ -21,7 +21,7 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       home: Scaffold(
         appBar: AppBar(
-          title: const Text('Plugin example app'),
+          title: const Text('Lidar plugin example app'),
         ),
         body: const HomePage(),
       ),
@@ -109,7 +109,7 @@ class _PickerViewState extends State<PickerView> {
                   final LidarCamera cam = LidarCamera();
                   final properties = await cam.readDepthConversionData(
                     fileName: cleanedName,
-                    frameNumber: 10,
+                    frameNumber: 12,
                   );
                   if (properties == null) return;
                   final bytes = properties.depthImage;

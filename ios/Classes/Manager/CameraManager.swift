@@ -34,14 +34,6 @@ class CameraManager: ObservableObject, CaptureDataReceiver, CaptureTimeReceiver 
         controller.timeReceiverDelegate = self
     }
     
-    func outputVideoRecording() {
-        isRecording = false
-    }
-    
-    func startRecording() {
-        isRecording = true
-    }
-    
     func onNewData(capturedData: CameraCapturedData) {
         DispatchQueue.main.async {
             // Update captured data for views
@@ -56,8 +48,14 @@ class CameraManager: ObservableObject, CaptureDataReceiver, CaptureTimeReceiver 
         }
     }
     
-    func onRecordingTimeUpdate(recordedTime: CMTime) {
-        self.recordedTime = recordedTime
+    func onRecordingTimeUpdate(recordedTime: CMTime) {        self.recordedTime = recordedTime
+
+        let duration = CMTimeGetSeconds(recordedTime)
+        
+        // Stop capture session if duration exceeds 4 seconds
+        if duration >= 4.0 {
+            self.isRecording = false
+        }
     }
     
     func cleanup() {
