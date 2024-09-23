@@ -112,17 +112,13 @@ class _PickerViewState extends State<PickerView> {
                     frameNumber: 12,
                   );
                   if (properties == null) return;
-                  final bytes = properties.depthImageResized(
-                    height: 1920,
-                    width: 1080,
-                  );
+                  final bytes = properties.depthImage1920x1080;
                   if (!mounted) return;
                   setState(() {
                     depthImageBytes = bytes;
                   });
                 },
                 child: const Text("Pick Video"),
-                // D33BAC4E-1514-40A9-B55A-59F290F321A3
               ),
               const SizedBox(
                 height: 20,
