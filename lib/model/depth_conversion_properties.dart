@@ -34,53 +34,71 @@ class DepthConversionProperties {
   String toString() =>
       'DepthConversionProperties(transform: $transform, cameraIntrinsic: $cameraIntrinsic, depth: $depth)';
 
-// Decode depth data from byte array and return a 2D array (List of Lists)
-  List<List<double>> get decodeDepthData {
+  List<List<double>> decodeDepthData({
+    required int height,
+    required int width,
+  }) {
     try {
-      final ByteData byteData = ByteData.sublistView(depth);
+      img.Image resizedImage = _depthImageResized(
+        height: height,
+        width: width,
+      );
 
-      // Extract width and height from the byte data
-      int width = byteData.getInt32(0, Endian.little);
-      int height = byteData.getInt32(4, Endian.little);
+      // Convert resized image back to 2D depth data
+      List<List<double>> resizedDepthMap = List.generate(
+        height,
+        (row) => List.generate(
+          width,
+          (col) {
+            img.Pixel pixel = resizedImage.getPixel(col, row);
+            num r = pixel.r;
+            return r / 255 * 5;
+          },
+        ),
+      );
 
-      int depthDataStartIndex = 8; // Start index for the depth data
-
-      // Initialize a 2D list for the depth map
-      List<List<double>> depthMap =
-          List.generate(height, (_) => List.filled(width, 0.0));
-
-      // Read depth data and populate the 2D array
-      for (int row = 0; row < height; row++) {
-        for (int col = 0; col < width; col++) {
-          int index = row * width + col;
-          int accessAt = depthDataStartIndex + index * 4;
-
-          depthMap[row][col] = byteData.getFloat32(accessAt, Endian.little);
-        }
-      }
-
-      return depthMap;
+      return resizedDepthMap;
     } catch (e) {
       return [];
     }
   }
 
-  Uint8List get depthImage {
+  Uint8List depthImageResized({
+    int? height,
+    int? width,
+  }) {
+    final resizedImage = _depthImageResized(
+      height: height,
+      width: width,
+    );
+
+    // Encode the resized image to PNG format
+    Uint8List pngBytes = Uint8List.fromList(img.encodePng(resizedImage));
+
+    return pngBytes;
+  }
+
+  img.Image _depthImageResized({
+    int? height,
+    int? width,
+  }) {
+    // Extract the depth data from the ByteData view
     final ByteData byteData = ByteData.sublistView(depth);
 
-    // Extract the width and height directly from the depth map
-    int width = byteData.getInt32(0, Endian.little);
-    int height = byteData.getInt32(4, Endian.little);
+    // Extract the original width and height directly from the depth map
+    int originalWidth = byteData.getInt32(0, Endian.little);
+    int originalHeight = byteData.getInt32(4, Endian.little);
 
     int depthDataStartIndex = 8; // Depth data starts after the width and height
     num maxDepthValue = 5; // Maximum expected depth value for normalization
 
-    // Create an Image object using the image package with the original dimensions
-    img.Image image = img.Image(width: width, height: height);
+    // Create an Image object with the original dimensions using the image package
+    img.Image image = img.Image(width: originalWidth, height: originalHeight);
 
-    for (int y = 0; y < height; y++) {
-      for (int x = 0; x < width; x++) {
-        int originalIndex = y * width + x;
+    // Iterate over each pixel to convert depth data to grayscale
+    for (int y = 0; y < originalHeight; y++) {
+      for (int x = 0; x < originalWidth; x++) {
+        int originalIndex = y * originalWidth + x;
         int accessAt = depthDataStartIndex + originalIndex * 4;
 
         // Get the depth value as a float (32-bit)
@@ -90,15 +108,20 @@ class DepthConversionProperties {
         int grayscale =
             (depthValue * 255 / maxDepthValue).clamp(0, 255).toInt();
 
-        // Set the pixel color (grayscale) in the image
-        image.setPixelRgba(x, y, grayscale, grayscale, grayscale,
-            255); // Set with rotated indices
+        // Set the pixel color in grayscale in the image
+        image.setPixelRgba(x, y, grayscale, grayscale, grayscale, 255);
       }
     }
 
-    // Encode the image to PNG format
-    Uint8List pngBytes = Uint8List.fromList(img.encodePng(image));
+    // Resize the image to the desired dimensions
+    final resizedImage = img.copyResize(
+      image,
+      height: height ?? originalHeight,
+      width: width ?? originalWidth,
+      maintainAspect: true,
+      interpolation: img.Interpolation.cubic,
+    );
 
-    return pngBytes;
+    return resizedImage;
   }
 }

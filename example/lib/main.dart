@@ -112,7 +112,10 @@ class _PickerViewState extends State<PickerView> {
                     frameNumber: 12,
                   );
                   if (properties == null) return;
-                  final bytes = properties.depthImage;
+                  final bytes = properties.depthImageResized(
+                    height: 1920,
+                    width: 1080,
+                  );
                   if (!mounted) return;
                   setState(() {
                     depthImageBytes = bytes;
