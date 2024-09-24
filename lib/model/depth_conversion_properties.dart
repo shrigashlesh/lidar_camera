@@ -12,9 +12,11 @@ class DepthConversionProperties {
     required this.transform,
     required this.cameraIntrinsic,
     required this.depth,
-    int? height,
-    int? width,
-  }) : _resizedImage = _generateResizedImage1920x1080(depth);
+  }) {
+    final extractedResult = _generateResizedImage1920x1080(depth);
+    _resizedImage = extractedResult.$1;
+    _orgDepthMap = extractedResult.$2;
+  }
 
   @Matrix4Converter()
   @JsonKey(name: 'viewTransform')
@@ -26,7 +28,8 @@ class DepthConversionProperties {
   @Uint8ListConverter()
   final Uint8List depth;
 
-  final img.Image _resizedImage;
+  late img.Image _resizedImage;
+  late List<List<double>> _orgDepthMap;
 
   static DepthConversionProperties fromJson(Map<String, dynamic> json) =>
       _$DepthConversionPropertiesFromJson(json);
@@ -37,29 +40,7 @@ class DepthConversionProperties {
   String toString() =>
       'DepthConversionProperties(transform: $transform, cameraIntrinsic: $cameraIntrinsic, depth: $depth)';
 
-  List<List<double>> get depthMap1920x1080 {
-    try {
-      // Use the cached resized image for decoding
-      img.Image resizedImage = _resizedImage;
-
-      // Convert resized image back to 2D depth data
-      List<List<double>> resizedDepthMap = List.generate(
-        1920,
-        (row) => List.generate(
-          1080,
-          (col) {
-            img.Pixel pixel = resizedImage.getPixel(col, row);
-            num r = pixel.r;
-            return r / 255 * 5;
-          },
-        ),
-      );
-
-      return resizedDepthMap;
-    } catch (e) {
-      return [];
-    }
-  }
+  List<List<double>> get orginalDepthMap => _orgDepthMap;
 
   Uint8List get depthImage1920x1080 {
     // Use the cached resized image and return it as PNG
@@ -67,34 +48,40 @@ class DepthConversionProperties {
     return pngBytes;
   }
 
-  // Static method to generate resized image
-  static img.Image _generateResizedImage1920x1080(
-    Uint8List depth,
-  ) {
+// Static method to generate resized image
+  static (img.Image, List<List<double>>) _generateResizedImage1920x1080(
+      Uint8List depth) {
     final ByteData byteData = ByteData.sublistView(depth);
 
     // Extract original width and height from the depth data
-    int originalWidth = byteData.getInt32(0, Endian.little);
-    int originalHeight = byteData.getInt32(4, Endian.little);
-
-    int depthDataStartIndex = 8; // Depth data starts after the width and height
-    num maxDepthValue = 5; // Maximum expected depth value for normalization
+    int originalWidth = 180; // Set the original width
+    int originalHeight = 320; // Set the original height
 
     // Create an image with original dimensions
     img.Image image = img.Image(width: originalWidth, height: originalHeight);
-
+    List<List<double>> depthMap = List.generate(
+      originalHeight,
+      (row) => List.generate(
+        originalWidth,
+        (col) {
+          return 0;
+        },
+      ),
+    );
     // Iterate over each pixel and convert depth data to grayscale
     for (int y = 0; y < originalHeight; y++) {
       for (int x = 0; x < originalWidth; x++) {
         int originalIndex = y * originalWidth + x;
-        int accessAt = depthDataStartIndex + originalIndex * 4;
 
-        // Get the depth value as a float (32-bit)
-        double depthValue = byteData.getFloat32(accessAt, Endian.little);
+        // Get the depth value as UInt16
+        int accessAt = originalIndex * 2; // Each depth value is 2 bytes
+        int depthValueRaw = byteData.getUint16(accessAt, Endian.little);
 
-        // Normalize the depth value to grayscale (0-255 range)
-        int grayscale =
-            (depthValue * 255 / maxDepthValue).clamp(0, 255).toInt();
+        // Convert the UInt16 value to a normalized float (assuming max depth is 65535)
+        double depthValue = depthValueRaw / 65535.0;
+        depthMap[y][x] = depthValue;
+        // Convert normalized depth value to grayscale (0-255 range)
+        int grayscale = (depthValue * 255).clamp(0, 255).toInt();
 
         // Set the pixel color (grayscale) in the image
         image.setPixelRgba(x, y, grayscale, grayscale, grayscale, 255);
@@ -110,6 +97,6 @@ class DepthConversionProperties {
       interpolation: img.Interpolation.cubic,
     );
 
-    return resizedImage;
+    return (resizedImage, depthMap);
   }
 }

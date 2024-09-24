@@ -14,12 +14,9 @@ import Metal
 struct LidarCamera: View {
     @StateObject private var manager = CameraManager()
     let previewCornerRadius: CGFloat = 15.0
-    @State private var maxDepth = Float(5.0)
+    @State private var maxDepth = Float(15.0)
     @State private var minDepth = Float(0.0)
     @State private var scaleMovement = Float(1.0)
-    
-    let maxRangeDepth = Float(15)
-    let minRangeDepth = Float(0)
 
     var body: some View {
         GeometryReader { geometry in

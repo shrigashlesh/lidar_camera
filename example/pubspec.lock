@@ -77,10 +77,10 @@ packages:
     dependency: transitive
     description:
       name: extended_image
-      sha256: "75235b2cf90de7663640c2da43b0549fc1f373340b7ee925696e92e8ec55c4db"
+      sha256: "8ad4917eaae7271ce6d975d5c0040c7903010262908fbdb49ff2798fca754d3b"
       url: "https://pub.dev"
     source: hosted
-    version: "8.2.4"
+    version: "8.3.0"
   extended_image_library:
     dependency: transitive
     description:
@@ -354,18 +354,18 @@ packages:
     dependency: transitive
     description:
       name: photo_manager
-      sha256: e29619443803c40385ee509abc7937835d9b5122f899940080d28b2dceed59c1
+      sha256: "2b5c0d02014b64b971e57aa840ae7d7ffd81b0482a082579eb17ff83e5dc408e"
       url: "https://pub.dev"
     source: hosted
-    version: "3.3.0"
+    version: "3.4.0"
   photo_manager_image_provider:
     dependency: transitive
     description:
       name: photo_manager_image_provider
-      sha256: "38ef1023dc11de3a8669f16e7c981673b3c5cfee715d17120f4b87daa2cdd0af"
+      sha256: b0a6d59f34e48c2b9aa52a4a655308c29b0fc4b3931607f9e0e252bc49aef974
       url: "https://pub.dev"
     source: hosted
-    version: "2.1.1"
+    version: "2.1.2"
   platform:
     dependency: transitive
     description:
@@ -551,10 +551,10 @@ packages:
     dependency: transitive
     description:
       name: wechat_picker_library
-      sha256: "0c2c4befeb472fc64f65903a96767a25cd8c312f0d34022873a0bccc593980a7"
+      sha256: a42e09cb85b15fc9410f6a69671371cc60aa99c4a1f7967f6593a7f665f6f47a
       url: "https://pub.dev"
     source: hosted
-    version: "1.0.3"
+    version: "1.0.5"
   xdg_directories:
     dependency: transitive
     description:

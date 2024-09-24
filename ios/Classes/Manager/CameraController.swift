@@ -223,15 +223,15 @@ class CameraController: NSObject, ObservableObject {
         
         // Find a suitable depth data format.
         let depthFormats = format.supportedDepthDataFormats
-        let depth32formats = depthFormats.filter({
+        let depth16formats = depthFormats.filter({
             CMFormatDescriptionGetMediaSubType($0.formatDescription) == kCVPixelFormatType_DepthFloat16
         })
         
-        if depth32formats.isEmpty {
+        if depth16formats.isEmpty {
             print("Device does not support Float16 depth format")
             throw ConfigurationError.requiredFormatUnavailable
         }
-        let selectedDepthFormat = depth32formats.max(by: { first, second in
+        let selectedDepthFormat = depth16formats.max(by: { first, second in
             CMVideoFormatDescriptionGetDimensions(first.formatDescription).width <
                 CMVideoFormatDescriptionGetDimensions(second.formatDescription).width })
         

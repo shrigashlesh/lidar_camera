@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+import 'dart:developer';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -112,6 +114,18 @@ class _PickerViewState extends State<PickerView> {
                     frameNumber: 12,
                   );
                   if (properties == null) return;
+                  final depthValues = properties.orginalDepthMap;
+
+                  // Flatten the list of lists into a single list
+                  List<double> flattenedList =
+                      depthValues.expand((i) => i).toList();
+
+                  // Find min and max values
+                  double minValue = flattenedList.reduce(math.min);
+                  double maxValue = flattenedList.reduce(math.max);
+
+                  log('Min value: $minValue');
+                  log('Max value: $maxValue');
                   final bytes = properties.depthImage1920x1080;
                   if (!mounted) return;
                   setState(() {
