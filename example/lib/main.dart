@@ -114,7 +114,9 @@ class _PickerViewState extends State<PickerView> {
                     frameNumber: 12,
                   );
                   if (properties == null) return;
-                  final depthValues = properties.orginalDepthMap;
+                  print(properties.cameraIntrinsic);
+                  print(properties.transform);
+                  final depthValues = properties.originalDepthMap;
 
                   // Flatten the list of lists into a single list
                   List<double> flattenedList =

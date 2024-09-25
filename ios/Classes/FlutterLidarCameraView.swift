@@ -5,7 +5,7 @@ import SwiftUI
 
 class FlutterLidarCameraView: NSObject, FlutterPlatformView {
     private var _view: UIView
-    private var hostingController: UIHostingController<LidarCamera>?
+    private var hostingController: UIHostingController<ARRecordingView>?
 
     init(
         frame: CGRect,
@@ -25,7 +25,7 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
     func createNativeView(view _view: UIView){
         let topController = UIApplication.shared.keyWindowPresentedController
         
-        let vc = UIHostingController(rootView: LidarCamera())
+        let vc = UIHostingController(rootView: ARRecordingView())
         hostingController = vc // Store reference to hosting controller
         let swiftUiView = vc.view!
         swiftUiView.translatesAutoresizingMaskIntoConstraints = false

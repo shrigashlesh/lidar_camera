@@ -15,7 +15,7 @@ class DepthConversionProperties {
   }) {
     final extractedResult = _generateResizedImage1920x1080(depth);
     _resizedImage = extractedResult.$1;
-    _orgDepthMap = extractedResult.$2;
+    _resizedDepthMap = extractedResult.$2;
   }
 
   @Matrix4Converter()
@@ -29,7 +29,7 @@ class DepthConversionProperties {
   final Uint8List depth;
 
   late img.Image _resizedImage;
-  late List<List<double>> _orgDepthMap;
+  late List<List<double>> _resizedDepthMap;
 
   static DepthConversionProperties fromJson(Map<String, dynamic> json) =>
       _$DepthConversionPropertiesFromJson(json);
@@ -40,7 +40,7 @@ class DepthConversionProperties {
   String toString() =>
       'DepthConversionProperties(transform: $transform, cameraIntrinsic: $cameraIntrinsic, depth: $depth)';
 
-  List<List<double>> get orginalDepthMap => _orgDepthMap;
+  List<List<double>> get originalDepthMap => _resizedDepthMap;
 
   Uint8List get depthImage1920x1080 {
     // Use the cached resized image and return it as PNG
@@ -48,16 +48,13 @@ class DepthConversionProperties {
     return pngBytes;
   }
 
-// Static method to generate resized image
   static (img.Image, List<List<double>>) _generateResizedImage1920x1080(
       Uint8List depth) {
     final ByteData byteData = ByteData.sublistView(depth);
 
-    // Extract original width and height from the depth data
-    int originalWidth = 180; // Set the original width
-    int originalHeight = 320; // Set the original height
+    int originalWidth = 180;
+    int originalHeight = 320;
 
-    // Create an image with original dimensions
     img.Image image = img.Image(width: originalWidth, height: originalHeight);
     List<List<double>> depthMap = List.generate(
       originalHeight,
@@ -68,27 +65,22 @@ class DepthConversionProperties {
         },
       ),
     );
-    // Iterate over each pixel and convert depth data to grayscale
+
     for (int y = 0; y < originalHeight; y++) {
       for (int x = 0; x < originalWidth; x++) {
         int originalIndex = y * originalWidth + x;
-
-        // Get the depth value as UInt16
-        int accessAt = originalIndex * 2; // Each depth value is 2 bytes
-        int depthValueRaw = byteData.getUint16(accessAt, Endian.little);
-
-        // Convert the UInt16 value to a normalized float (assuming max depth is 65535)
-        double depthValue = depthValueRaw / 65535.0;
+        int accessAt = originalIndex * 4;
+        double depthValue = byteData.getFloat32(accessAt, Endian.little);
         depthMap[y][x] = depthValue;
-        // Convert normalized depth value to grayscale (0-255 range)
-        int grayscale = (depthValue * 255).clamp(0, 255).toInt();
-
-        // Set the pixel color (grayscale) in the image
+        int grayscale = (depthValue / 15 * 255).clamp(0, 255).toInt();
         image.setPixelRgba(x, y, grayscale, grayscale, grayscale, 255);
       }
     }
 
-    // Resize the image with cubic interpolation
+    // // Resize the depth map using bicubic interpolation
+    // List<List<double>> resizedDepthMap =
+    //     _resizeDepthMapBicubic(depthMap, 1080, 1920);
+
     final resizedImage = img.copyResize(
       image,
       height: 1920,
@@ -98,5 +90,70 @@ class DepthConversionProperties {
     );
 
     return (resizedImage, depthMap);
+  }
+
+  static List<List<double>> _resizeDepthMapBicubic(
+      List<List<double>> originalDepthMap, int newWidth, int newHeight) {
+    int originalHeight = originalDepthMap.length;
+    int originalWidth = originalDepthMap[0].length;
+
+    // Create a new depth map for the resized data
+    List<List<double>> resizedDepthMap = List.generate(
+      newHeight,
+      (row) => List.generate(newWidth, (col) => 0.0),
+    );
+
+    // Bicubic interpolation formula, scaling factors
+    double xRatio = originalWidth / newWidth;
+    double yRatio = originalHeight / newHeight;
+
+    for (int newY = 0; newY < newHeight; newY++) {
+      for (int newX = 0; newX < newWidth; newX++) {
+        // Map new pixel coordinates to original coordinates
+        double origX = newX * xRatio;
+        double origY = newY * yRatio;
+
+        // Get the nearest 4x4 neighborhood around the original pixel
+        int x0 = origX.floor();
+        int y0 = origY.floor();
+
+        // Ensure indices are within bounds
+        x0 = x0.clamp(0, originalWidth - 2);
+        y0 = y0.clamp(0, originalHeight - 2);
+
+        // Perform bicubic interpolation for this pixel
+        resizedDepthMap[newY][newX] = _bicubicInterpolation(
+            originalDepthMap, x0, y0, origX - x0, origY - y0);
+      }
+    }
+
+    return resizedDepthMap;
+  }
+
+  static double _bicubicInterpolation(
+      List<List<double>> map, int x, int y, double dx, double dy) {
+    double result = 0.0;
+    for (int m = -1; m <= 2; m++) {
+      for (int n = -1; n <= 2; n++) {
+        int xi = (x + m).clamp(0, map[0].length - 1);
+        int yi = (y + n).clamp(0, map.length - 1);
+        double weightX = _bicubicWeight(dx - m);
+        double weightY = _bicubicWeight(dy - n);
+        result += map[yi][xi] * weightX * weightY;
+      }
+    }
+    return result;
+  }
+
+  static double _bicubicWeight(double t) {
+    // Cubic interpolation weights
+    t = t.abs();
+    if (t <= 1) {
+      return 1.5 * t * t * t - 2.5 * t * t + 1;
+    } else if (t <= 2) {
+      return -0.5 * t * t * t + 2.5 * t * t - 4 * t + 2;
+    } else {
+      return 0;
+    }
   }
 }

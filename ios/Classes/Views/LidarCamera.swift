@@ -34,11 +34,10 @@ struct LidarCamera: View {
                             let width = geometry.size.width
                             let height = geometry.size.height
 
-                            MetalTextureColorThresholdDepthView(
+                            MetalTextureColorZapView(
                                 rotationAngle: CGFloat(-Double.pi/2),
                                 maxDepth: $maxDepth,
-                                minDepth: $minDepth,
-                                capturedData: manager.capturedData
+                                minDepth: $minDepth,                                 capturedData: manager.capturedData
                             )
                             .clipShape(RoundedRectangle(cornerRadius: previewCornerRadius))
                             .frame(width: width, height: height)

@@ -1,31 +1,61 @@
+//
+//  DepthMap2DArray.swift
+//  lidar_camera
+//
+//  Created by Shrig Solutions on 17/09/2024.
+//
+
+import Foundation
 import AVFoundation
-import CoreGraphics
+import ARKit
 
 extension AVDepthData {
     func asBytes() -> Data? {
-        // Get the depth map as Float16
-        let depthMap = self.depthDataMap
+        let depthMap = depthDataMap
         let width = CVPixelBufferGetWidth(depthMap)
         let height = CVPixelBufferGetHeight(depthMap)
         let bytesPerRow = CVPixelBufferGetBytesPerRow(depthMap)
         
-        CVPixelBufferLockBaseAddress(depthMap, .readOnly)
+        CVPixelBufferLockBaseAddress(depthMap, CVPixelBufferLockFlags(rawValue: 0))
         guard let baseAddress = CVPixelBufferGetBaseAddress(depthMap) else {
-            CVPixelBufferUnlockBaseAddress(depthMap, .readOnly)
+            CVPixelBufferUnlockBaseAddress(depthMap, CVPixelBufferLockFlags(rawValue: 0))
             return nil
         }
         
-        var depthValues = [Float16]()
-        for row in 0..<height {
-            let rowData = baseAddress.advanced(by: row * bytesPerRow).assumingMemoryBound(to: Float16.self)
-            for col in 0..<width {
-                let depthValue16 = rowData[col]
-                depthValues.append(depthValue16)
+        var depthValues = [Float]()
+        for y in 0..<height {
+            let pixelBytes = baseAddress.advanced(by: y * bytesPerRow)
+            let pixelBuffer = UnsafeBufferPointer<Float>(start: pixelBytes.assumingMemoryBound(to: Float.self), count: width)
+            for x in 0..<width {
+                depthValues.append(pixelBuffer[x])
             }
         }
+        CVPixelBufferUnlockBaseAddress(depthMap, CVPixelBufferLockFlags(rawValue: 0))
+        return Data(depthValues.flatMap { withUnsafeBytes(of: $0) { Array($0) } })
+    }
+}
+extension ARDepthData {
+    func asBytes() -> Data? {
+        let depthMap = depthMap
+        let width = CVPixelBufferGetWidth(depthMap)
+        let height = CVPixelBufferGetHeight(depthMap)
+        let bytesPerRow = CVPixelBufferGetBytesPerRow(depthMap)
         
-        CVPixelBufferUnlockBaseAddress(depthMap, .readOnly)
+        CVPixelBufferLockBaseAddress(depthMap, CVPixelBufferLockFlags(rawValue: 0))
+        guard let baseAddress = CVPixelBufferGetBaseAddress(depthMap) else {
+            CVPixelBufferUnlockBaseAddress(depthMap, CVPixelBufferLockFlags(rawValue: 0))
+            return nil
+        }
         
-        return Data(bytes: depthValues, count: depthValues.count * MemoryLayout<Float16>.size)
+        var depthValues = [Float]()
+        for y in 0..<height {
+            let pixelBytes = baseAddress.advanced(by: y * bytesPerRow)
+            let pixelBuffer = UnsafeBufferPointer<Float>(start: pixelBytes.assumingMemoryBound(to: Float.self), count: width)
+            for x in 0..<width {
+                depthValues.append(pixelBuffer[x])
+            }
+        }
+        CVPixelBufferUnlockBaseAddress(depthMap, CVPixelBufferLockFlags(rawValue: 0))
+        return Data(depthValues.flatMap { withUnsafeBytes(of: $0) { Array($0) } })
     }
 }

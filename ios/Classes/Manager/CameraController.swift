@@ -216,6 +216,8 @@ class CameraController: NSObject, ObservableObject {
             !format.isVideoBinned &&
             !format.supportedDepthDataFormats.isEmpty
         }
+        print(matchingFormats)
+
         // Find the first suitable format.
         guard let format = matchingFormats.first else {
             throw ConfigurationError.requiredFormatUnavailable
@@ -223,15 +225,17 @@ class CameraController: NSObject, ObservableObject {
         
         // Find a suitable depth data format.
         let depthFormats = format.supportedDepthDataFormats
-        let depth16formats = depthFormats.filter({
-            CMFormatDescriptionGetMediaSubType($0.formatDescription) == kCVPixelFormatType_DepthFloat16
+        print(depthFormats)
+        let depth32formats = depthFormats.filter({
+            CMFormatDescriptionGetMediaSubType($0.formatDescription) == kCVPixelFormatType_DepthFloat32
         })
-        
-        if depth16formats.isEmpty {
-            print("Device does not support Float16 depth format")
+        print(depth32formats)
+
+        if depth32formats.isEmpty {
+            print("Device does not support Float32 depth format")
             throw ConfigurationError.requiredFormatUnavailable
         }
-        let selectedDepthFormat = depth16formats.max(by: { first, second in
+        let selectedDepthFormat = depth32formats.max(by: { first, second in
             CMVideoFormatDescriptionGetDimensions(first.formatDescription).width <
                 CMVideoFormatDescriptionGetDimensions(second.formatDescription).width })
         
@@ -512,7 +516,7 @@ extension CameraController: AVCaptureDataOutputSynchronizerDelegate, AVCaptureAu
         
         // Package the captured data.
         let data = CameraCapturedData(
-            depth: syncedDepthData.depthData.depthDataMap.texture(withFormat: .r16Float, planeIndex: 0, addToCache: textureCache),
+            depth: syncedDepthData.depthData.depthDataMap.texture(withFormat: .r32Float, planeIndex: 0, addToCache: textureCache),
             colorY: videoPixelBuffer.texture(withFormat: .r8Unorm, planeIndex: 0, addToCache: textureCache),
             colorCbCr: videoPixelBuffer.texture(withFormat: .rg8Unorm, planeIndex: 1, addToCache: textureCache),
             cameraIntrinsics: cameraCalibrationData.intrinsicMatrix,
