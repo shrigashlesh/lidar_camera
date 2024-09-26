@@ -15,7 +15,6 @@ A new Flutter plugin project.
   s.source           = { :path => '.' }
   s.source_files = 'Classes/**/*'
   s.dependency 'Flutter'
-  s.dependency 'ARVideoKit', '~> 1.5.51'
   s.platform = :ios, '12.0'
   s.ios.deployment_target = '15.4'
   # Flutter.framework does not contain a i386 slice.

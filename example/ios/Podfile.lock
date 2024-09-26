@@ -1,10 +1,8 @@
 PODS:
-  - ARVideoKit (1.5.51)
   - Flutter (1.0.0)
   - integration_test (0.0.1):
     - Flutter
   - lidar_camera (0.0.1):
-    - ARVideoKit (~> 1.5.51)
     - Flutter
   - path_provider_foundation (0.0.1):
     - Flutter
@@ -24,10 +22,6 @@ DEPENDENCIES:
   - photo_manager (from `.symlinks/plugins/photo_manager/ios`)
   - video_player_avfoundation (from `.symlinks/plugins/video_player_avfoundation/darwin`)
 
-SPEC REPOS:
-  trunk:
-    - ARVideoKit
-
 EXTERNAL SOURCES:
   Flutter:
     :path: Flutter
@@ -43,10 +37,9 @@ EXTERNAL SOURCES:
     :path: ".symlinks/plugins/video_player_avfoundation/darwin"
 
 SPEC CHECKSUMS:
-  ARVideoKit: cd70e1e49e042ed4a88fb59964c17520e34f7f5b
   Flutter: e0871f40cf51350855a761d2e70bf5af5b9b5de7
   integration_test: 252f60fa39af5e17c3aa9899d35d908a0721b573
-  lidar_camera: 39cde5cd58335ae9308c7e8245551c6591279f84
+  lidar_camera: e23bf0bf1160ff11c13b9e76fdf7ea9607719c5f
   path_provider_foundation: 2b6b4c569c0fb62ec74538f866245ac84301af46
   photo_manager: ff695c7a1dd5bc379974953a2b5c0a293f7c4c8a
   video_player_avfoundation: 7c6c11d8470e1675df7397027218274b6d2360b3

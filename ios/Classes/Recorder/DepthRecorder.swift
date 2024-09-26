@@ -18,7 +18,7 @@ class DepthRecorder: Recorder {
     private var count: Int32 = 0
     private var fileIO: BinaryFileIO? = nil
     private var recordingId: String? = nil
-
+    
     func prepareForRecording(recordingId: String) {
         
         depthRecorderQueue.async {
@@ -73,6 +73,5 @@ class DepthRecorder: Recorder {
         } catch {
             print("Couldn't save depth at \(count)")
         }
-       
     }
 }

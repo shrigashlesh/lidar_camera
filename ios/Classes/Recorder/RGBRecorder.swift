@@ -12,13 +12,15 @@ import AVFoundation
 import Foundation
 import Photos
 
-class RGBRecorder: Recorder {
+class RGBRecorder: NSObject, Recorder {
     typealias T = CVPixelBuffer
     
     private let rgbRecorderQueue = DispatchQueue(label: "rgb recorder queue")
     
+    // AVAssetWriter components for video recording.
     private var assetWriter: AVAssetWriter?
     private var assetWriterVideoInput: AVAssetWriterInput?
+    private var assetWriterAudioInput: AVAssetWriterInput?
     private var assetWriterInputPixelBufferAdaptor: AVAssetWriterInputPixelBufferAdaptor?
     private var videoSettings: [String: Any]
     
@@ -29,7 +31,6 @@ class RGBRecorder: Recorder {
     }
     
     func prepareForRecording(recordingId: String) {
-        
         rgbRecorderQueue.async {
             
             self.count = 0
@@ -40,18 +41,33 @@ class RGBRecorder: Recorder {
                 return
             }
             
+            
             let assetWriterVideoInput = AVAssetWriterInput(mediaType: .video, outputSettings: self.videoSettings)
             
             let assetWriterInputPixelBufferAdaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: assetWriterVideoInput, sourcePixelBufferAttributes: nil)
             
             assetWriterVideoInput.expectsMediaDataInRealTime = true
             assetWriterVideoInput.transform = CGAffineTransform(rotationAngle: .pi/2)
-
+            
             assetWriter.add(assetWriterVideoInput)
             
+            
+            // Audio settings.
+            let audioSettings: [String: Any] = [
+                AVFormatIDKey: kAudioFormatMPEG4AAC,
+                AVNumberOfChannelsKey: 2,
+                AVSampleRateKey: 44100,
+                AVEncoderBitRateKey: 64000
+            ]
+            let assetAudioWriterInput = AVAssetWriterInput(mediaType: .audio, outputSettings: audioSettings)
+            assetAudioWriterInput.expectsMediaDataInRealTime = true
+            assetWriter.add(assetAudioWriterInput)
+
             self.assetWriter = assetWriter
             self.assetWriterVideoInput = assetWriterVideoInput
+            self.assetWriterAudioInput = assetAudioWriterInput
             self.assetWriterInputPixelBufferAdaptor = assetWriterInputPixelBufferAdaptor
+            
         }
         
     }
@@ -72,6 +88,7 @@ class RGBRecorder: Recorder {
             print("Saving video frame \(self.count) ...")
             
             if assetWriter.status == .unknown {
+                
                 assetWriter.startWriting()
                 assetWriter.startSession(atSourceTime: timestamp)
                 
@@ -88,9 +105,6 @@ class RGBRecorder: Recorder {
                 }
                 
             } else if assetWriter.status == .writing {
-                
-//                print("Status .writing. Accually saving \(self.count) ...")
-                
                 if let adaptor = self.assetWriterInputPixelBufferAdaptor, adaptor.assetWriterInput.isReadyForMoreMediaData {
                     adaptor.append(buffer, withPresentationTime: timestamp)
                 }
@@ -100,23 +114,10 @@ class RGBRecorder: Recorder {
         }
     }
     
-    func update(buffer: CMSampleBuffer) {
-        
-        rgbRecorderQueue.async {
-            
-            guard let assetWriter = self.assetWriter else {
-                print("Error! assetWriter not initialized.")
-                return
-            }
-            
-            if assetWriter.status == .unknown {
-                assetWriter.startWriting()
-                assetWriter.startSession(atSourceTime: CMSampleBufferGetPresentationTimeStamp(buffer))
-            } else if assetWriter.status == .writing {
-                if let input = self.assetWriterVideoInput, input.isReadyForMoreMediaData {
-                    input.append(buffer)
-                }
-            }
+    func updateAudioSample(_ buffer: CMSampleBuffer){
+        guard let audioWriterInput = assetWriterAudioInput else { return }
+        if audioWriterInput.isReadyForMoreMediaData {
+            audioWriterInput.append(buffer)
         }
     }
     
@@ -128,7 +129,6 @@ class RGBRecorder: Recorder {
                 print("Error!")
                 return
             }
-            
             
             assetWriter.finishWriting { [weak self] in
                 guard let self = self else { return }

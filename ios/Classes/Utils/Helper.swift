@@ -34,7 +34,7 @@ struct Helper {
         dateFormatter.dateFormat = "yyyyMMdd'T'HHmmssZ"
         let dateString = dateFormatter.string(from: Date())
         
-        let recordingId = dateString + "_" + UIDevice.current.identifierForVendor!.uuidString
+        let recordingId = dateString + "_" + UUID().uuidString
         
         return recordingId
     }

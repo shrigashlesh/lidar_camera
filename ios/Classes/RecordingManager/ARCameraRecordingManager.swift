@@ -12,6 +12,7 @@ import ARKit
 class ARCameraRecordingManager: NSObject {
     
     private let sessionQueue = DispatchQueue(label: "ar camera recording queue")
+    private let audioRecorderQueue = DispatchQueue(label: "audio recorder queue")
     
     private let session = ARSession()
     
@@ -21,7 +22,6 @@ class ARCameraRecordingManager: NSObject {
     private let cameraInfoRecorder = CameraInfoRecorder()
     
     private var numFrames: Int = 0
-    private var dirUrl: URL!
     private var recordingId: String!
     var isRecording: Bool = false
     
@@ -41,19 +41,99 @@ class ARCameraRecordingManager: NSObject {
         sessionQueue.async {
             self.configureSession()
         }
+        setupAudioSession()
     }
     
     deinit {
         sessionQueue.sync {
             session.pause()
         }
+        audioRecorderQueue.sync {
+            deactivateAudioSession()
+        }
+    }
+    
+    
+    // Capture session object to audio input/output.
+    private(set) var audioCaptureSession: AVCaptureSession?
+    // Output for audio
+    private var audioDataOutput: AVCaptureAudioDataOutput?
+    
+    // Set up the capture session with audio inputs and outputs.
+    private func setupAudioSession() {
+        do {
+            audioCaptureSession = AVCaptureSession()
+            guard let audioCaptureSession = audioCaptureSession else {
+                throw ConfigurationError.sessionUnavailable
+            }
+            audioCaptureSession.automaticallyConfiguresApplicationAudioSession = false
+            audioCaptureSession.beginConfiguration()
+            try setupAudioCaptureInput()
+            try setupAudioCaptureOutput()
+            audioCaptureSession.commitConfiguration()
+        } catch {
+            print("Unable to configure the audio session.")
+        }
+    }
+    
+    // Set up the camera input (LiDAR) for depth data, video, and audio.
+    private func setupAudioCaptureInput() throws {
+        guard let audioCaptureSession = audioCaptureSession else {
+            throw ConfigurationError.sessionUnavailable
+        }
+        
+        // Set up audio input (microphone)
+        guard let audioDevice = AVCaptureDevice.default(for: .audio) else {
+            throw ConfigurationError.micUnavailable
+        }
+        
+        let audioInput = try AVCaptureDeviceInput(device: audioDevice)
+        audioCaptureSession.addInput(audioInput)  // Add the audio input to the capture session.
+    }
+    
+    // Set up the outputs for video, depth data, and audio.
+    private func setupAudioCaptureOutput() throws{
+        guard let audioCaptureSession = audioCaptureSession else {
+            throw ConfigurationError.sessionUnavailable
+        }
+        
+        // Configure the audio data output.
+        audioDataOutput = AVCaptureAudioDataOutput()
+        guard let audioDataOutput = audioDataOutput else {return}
+        audioDataOutput.setSampleBufferDelegate(self, queue: audioRecorderQueue)
+        audioCaptureSession.addOutput(audioDataOutput)
+        
+    }
+    private func find4by3VideoFormat() -> ARConfiguration.VideoFormat? {
+        let availableFormats = ARWorldTrackingConfiguration.supportedVideoFormats
+        for format in availableFormats {
+            let resolution = format.imageResolution
+            if resolution.width / 4 == resolution.height / 3 {
+                print("Using video format: \(format)")
+                return format
+            }
+        }
+        return nil
     }
     
     private func configureSession() {
-        session.delegate = self
         
         let configuration = ARWorldTrackingConfiguration()
-        configuration.frameSemantics = .sceneDepth
+        
+        if ARWorldTrackingConfiguration.supportsSceneReconstruction(.meshWithClassification) {
+            configuration.sceneReconstruction = .meshWithClassification
+        }
+        
+        if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
+            configuration.frameSemantics.insert(.sceneDepth)
+        }
+        
+        if let format = find4by3VideoFormat() {
+            configuration.videoFormat = format
+        } else {
+            print("No 4:3 video format is available")
+        }
+        session.delegate = self
         session.run(configuration)
         
         let videoFormat = configuration.videoFormat
@@ -73,8 +153,13 @@ extension ARCameraRecordingManager: RecordingManager {
         return session
     }
     
+    
     func startRecording() {
-        
+        do{
+            try activateAudioSession()
+        }catch{
+            
+        }
         sessionQueue.async { [self] in
             
             gpsLocation = Helper.getGpsLocation(locationManager: locationManager)
@@ -115,7 +200,7 @@ extension ARCameraRecordingManager: RecordingManager {
     }
     
     func stopRecording() {
-        
+        deactivateAudioSession()
         sessionQueue.sync { [self] in
             
             print("post count: \(numFrames)")
@@ -167,3 +252,51 @@ extension ARCameraRecordingManager: ARSessionDelegate {
     }
 }
 
+@available(iOS 14.0, *)
+extension ARCameraRecordingManager: AVCaptureAudioDataOutputSampleBufferDelegate {
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        if !isRecording {
+            return
+        }
+        if output == audioDataOutput {
+            rgbRecorder.updateAudioSample(sampleBuffer)
+        }
+    }
+    
+    
+    func activateAudioSession() throws {
+        do {
+            let audioSession = AVAudioSession.sharedInstance()
+            
+            try audioSession.setCategory(AVAudioSession.Category.playAndRecord,
+                                         mode: .videoRecording,
+                                         options: [.mixWithOthers,
+                                                   .allowBluetoothA2DP,
+                                                   .defaultToSpeaker,
+                                                   .allowAirPlay])
+            
+            if #available(iOS 14.5, *) {
+                // prevents the audio session from being interrupted by a phone call
+                try audioSession.setPrefersNoInterruptionsFromSystemAlerts(true)
+            }
+            
+            
+            // allow system sounds (notifications, calls, music) to play while recording
+            try audioSession.setAllowHapticsAndSystemSoundsDuringRecording(true)
+            audioRecorderQueue.async {
+                self.audioCaptureSession?.startRunning()
+            }
+        } catch let error as NSError {
+            switch error.code {
+            case 561_017_449:
+                throw ConfigurationError.micInUse
+            default:
+                throw ConfigurationError.audioSessionFailedToActivate
+            }
+        }
+    }
+    
+    func deactivateAudioSession() {
+        audioCaptureSession?.stopRunning()
+    }
+}

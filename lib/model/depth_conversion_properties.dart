@@ -55,17 +55,17 @@ class DepthConversionProperties {
     int originalWidth = 256;
     int originalHeight = 192;
 
+    // Create image and depth map
     img.Image image = img.Image(width: originalWidth, height: originalHeight);
     List<List<double>> depthMap = List.generate(
       originalHeight,
       (row) => List.generate(
         originalWidth,
-        (col) {
-          return 0;
-        },
+        (col) => 0.0,
       ),
     );
 
+    // Fill image and depth map
     for (int y = 0; y < originalHeight; y++) {
       for (int x = 0; x < originalWidth; x++) {
         int originalIndex = y * originalWidth + x;
@@ -77,6 +77,25 @@ class DepthConversionProperties {
       }
     }
 
-    return (image, depthMap);
+    // Rotate depth map by 90 degrees
+    List<List<double>> rotatedDepthMap = List.generate(
+      originalWidth,
+      (col) => List.generate(
+        originalHeight,
+        (row) => depthMap[originalHeight - row - 1][col],
+      ),
+    );
+
+    // Rotate image by 90 degrees
+    img.Image rotatedImage =
+        img.Image(height: originalWidth, width: originalHeight);
+    for (int y = 0; y < originalHeight; y++) {
+      for (int x = 0; x < originalWidth; x++) {
+        img.Pixel pixel = image.getPixel(x, y);
+        rotatedImage.setPixel(originalHeight - 1 - y, x, pixel);
+      }
+    }
+
+    return (rotatedImage, rotatedDepthMap);
   }
 }
