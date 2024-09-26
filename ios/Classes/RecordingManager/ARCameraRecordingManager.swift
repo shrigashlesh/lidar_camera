@@ -119,22 +119,23 @@ class ARCameraRecordingManager: NSObject {
     private func configureSession() {
         
         let configuration = ARWorldTrackingConfiguration()
-        
-        if ARWorldTrackingConfiguration.supportsSceneReconstruction(.meshWithClassification) {
-            configuration.sceneReconstruction = .meshWithClassification
-        }
-        
+
+        // Enable only scene depth
         if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
-            configuration.frameSemantics.insert(.sceneDepth)
+            configuration.frameSemantics = [.sceneDepth]  // Set only scene depth
         }
-        
+
+        // Optionally, set the video format if available
         if let format = find4by3VideoFormat() {
             configuration.videoFormat = format
         } else {
             print("No 4:3 video format is available")
         }
+
+        // Set session delegate and run the session
         session.delegate = self
         session.run(configuration)
+
         
         let videoFormat = configuration.videoFormat
         frequency = videoFormat.framesPerSecond
