@@ -24,14 +24,16 @@ public class LidarCameraPlugin: NSObject, FlutterPlugin {
                 return
             }
             do {
-                let frameNumberSuffix = String(format: "%04d", frameNumber);
+                let depthFileName = Helper.getDepthFileName(frameNumber: frameNumber)
+                let intrinsicFileName = Helper.getIntrinsicFileName(frameNumber: frameNumber)
+                let transformFileName = Helper.getTransformFileName(frameNumber: frameNumber)
                 let fileIo = BinaryFileIO()
                 // Read the three separate files
-                let depthData = try fileIo.read(folder: videoFileName, fromDocumentNamed: "depth_\(frameNumberSuffix)")
-                let cameraIntrinsicData = try fileIo.read(folder: videoFileName, fromDocumentNamed: "cameraIntrinsic_\(frameNumberSuffix)")
-                let viewTransformData = try fileIo.read(folder: videoFileName, fromDocumentNamed: "viewTransform_\(frameNumberSuffix)")
+                let depthData = try fileIo.read(folder: videoFileName, fromDocumentNamed: depthFileName)
+                let cameraIntrinsicData = try fileIo.read(folder: videoFileName, fromDocumentNamed: intrinsicFileName)
+                let cameraTransformData = try fileIo.read(folder: videoFileName, fromDocumentNamed: transformFileName)
                 
-                guard let cameraIntrinsic = deserialize3x3Matrix(data: cameraIntrinsicData), let viewTransform = deserialize4x3Matrix(data: viewTransformData) else {
+                guard let cameraIntrinsic = deserialize3x3Matrix(data: cameraIntrinsicData), let viewTransform = deserialize4x4Matrix(data: cameraTransformData) else {
                     result(FlutterError(code: "READ_ERROR", message: "Failed to read depth data", details: nil))
                     return
                 }

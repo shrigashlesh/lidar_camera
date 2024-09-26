@@ -4,13 +4,17 @@
 //
 //  Created by Shrig Solutions on 17/09/2024.
 //
-
 import Foundation
 import simd
 
 // Helper function to serialize an array of Float
 func serializeArray(_ array: simd_float3) -> [Float] {
     return [array.x, array.y, array.z]
+}
+
+// Helper function to serialize an array of Float from simd_float4
+func serializeArray(_ array: simd_float4) -> [Float] {
+    return [array.x, array.y, array.z, array.w]
 }
 
 // Serialize a 3x3 matrix to an array of Float
@@ -25,6 +29,12 @@ func serializeMatrix(_ matrix: simd_float4x3) -> [Float] {
     return matrixArray
 }
 
+// Serialize a 4x4 matrix to an array of Float
+func serializeMatrix(_ matrix: simd_float4x4) -> [Float] {
+    let matrixArray = [matrix.columns.0, matrix.columns.1, matrix.columns.2, matrix.columns.3].flatMap { serializeArray($0) }
+    return matrixArray
+}
+
 // Convert 3x3 matrix to Data
 func serializeMatrixToData(_ matrix: simd_float3x3) -> Data {
     let matrixArray = serializeMatrix(matrix)
@@ -33,6 +43,12 @@ func serializeMatrixToData(_ matrix: simd_float3x3) -> Data {
 
 // Convert 4x3 matrix to Data
 func serializeMatrixToData(_ matrix: simd_float4x3) -> Data {
+    let matrixArray = serializeMatrix(matrix)
+    return Data(matrixArray.flatMap { withUnsafeBytes(of: $0) { Array($0) } })
+}
+
+// Convert 4x4 matrix to Data
+func serializeMatrixToData(_ matrix: simd_float4x4) -> Data {
     let matrixArray = serializeMatrix(matrix)
     return Data(matrixArray.flatMap { withUnsafeBytes(of: $0) { Array($0) } })
 }
@@ -61,6 +77,21 @@ func deserialize4x3Matrix(data: Data) -> simd_float4x3? {
         for i in 0..<4 {
             for j in 0..<3 {
                 matrix[i, j] = baseAddress[i * 3 + j]
+            }
+        }
+    }
+    return matrix
+}
+
+// Deserialize Data to 4x4 matrix
+func deserialize4x4Matrix(data: Data) -> simd_float4x4? {
+    var matrix = simd_float4x4()
+    data.withUnsafeBytes { (rawPointer: UnsafeRawBufferPointer) in
+        guard let baseAddress = rawPointer.baseAddress?.assumingMemoryBound(to: Float.self) else { return }
+        
+        for i in 0..<4 {
+            for j in 0..<4 {
+                matrix[i, j] = baseAddress[i * 4 + j]
             }
         }
     }

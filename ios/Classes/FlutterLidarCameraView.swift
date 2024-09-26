@@ -1,11 +1,9 @@
 import Flutter
-import SwiftUI
-import Flutter
-import SwiftUI
+import UIKit
 
 class FlutterLidarCameraView: NSObject, FlutterPlatformView {
     private var _view: UIView
-    private var hostingController: UIHostingController<ARRecordingView>?
+    private var viewController: UIViewController?
 
     init(
         frame: CGRect,
@@ -25,31 +23,31 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
     func createNativeView(view _view: UIView){
         let topController = UIApplication.shared.keyWindowPresentedController
         
-        let vc = UIHostingController(rootView: ARRecordingView())
-        hostingController = vc // Store reference to hosting controller
-        let swiftUiView = vc.view!
-        swiftUiView.translatesAutoresizingMaskIntoConstraints = false
+        let vc = CameraViewController()
+        viewController = vc // Store reference to view controller
+        let uiKitView = vc.view!
+        uiKitView.translatesAutoresizingMaskIntoConstraints = false
         
         topController?.addChild(vc)
-        _view.addSubview(swiftUiView)
+        _view.addSubview(uiKitView)
         
         NSLayoutConstraint.activate(
             [
-                swiftUiView.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
-                swiftUiView.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
-                swiftUiView.topAnchor.constraint(equalTo: _view.topAnchor),
-                swiftUiView.bottomAnchor.constraint(equalTo:  _view.bottomAnchor)
+                uiKitView.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
+                uiKitView.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
+                uiKitView.topAnchor.constraint(equalTo: _view.topAnchor),
+                uiKitView.bottomAnchor.constraint(equalTo:  _view.bottomAnchor)
             ])
         
         vc.didMove(toParent: topController)
     }
 
     func cleanup() {
-        // Ensure hostingController is removed and cleaned up
-        hostingController?.willMove(toParent: nil)
-        hostingController?.view.removeFromSuperview()
-        hostingController?.removeFromParent()
-        hostingController = nil
+        // Ensure viewController is removed and cleaned up
+        viewController?.willMove(toParent: nil)
+        viewController?.view.removeFromSuperview()
+        viewController?.removeFromParent()
+        viewController = nil
     }
     
     deinit {

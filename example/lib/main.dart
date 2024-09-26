@@ -86,10 +86,13 @@ class _PickerViewState extends State<PickerView> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               if (depthImageBytes != null)
-                Image.memory(
-                  depthImageBytes!,
-                  height: 600,
-                  fit: BoxFit.contain,
+                Transform.rotate(
+                  angle: math.pi / 2,
+                  child: Image.memory(
+                    depthImageBytes!,
+                    height: 600,
+                    fit: BoxFit.contain,
+                  ),
                 ),
               ElevatedButton(
                 onPressed: () async {
@@ -114,10 +117,7 @@ class _PickerViewState extends State<PickerView> {
                     frameNumber: 12,
                   );
                   if (properties == null) return;
-                  print(properties.cameraIntrinsic);
-                  print(properties.transform);
                   final depthValues = properties.originalDepthMap;
-
                   // Flatten the list of lists into a single list
                   List<double> flattenedList =
                       depthValues.expand((i) => i).toList();
@@ -128,7 +128,7 @@ class _PickerViewState extends State<PickerView> {
 
                   log('Min value: $minValue');
                   log('Max value: $maxValue');
-                  final bytes = properties.depthImage1920x1080;
+                  final bytes = properties.depthImage192x256;
                   if (!mounted) return;
                   setState(() {
                     depthImageBytes = bytes;
