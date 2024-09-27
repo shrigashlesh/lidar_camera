@@ -25,7 +25,7 @@ class LidarCamera {
 
       return properties;
     } catch (e) {
-      log("ERROR $e");
+      log("$e");
     }
     return null;
   }

@@ -1,11 +1,9 @@
 //
 //  ARCameraRecordingManager.swift
-//  ScannerApp-Swift
+//  lidar_camera
 //
-//  Created by Zheren Xiao on 2020-11-17.
-//  Copyright © 2020 jx16. All rights reserved.
+//  Created by Shrig Solutions on 27/09/2024.
 //
-
 import ARKit
 
 @available(iOS 14.0, *)
@@ -32,7 +30,6 @@ class ARCameraRecordingManager: NSObject {
     private var colorFrameResolution: [Int] = []
     private var depthFrameResolution: [Int] = []
     private var frequency: Int?
-    
     override init() {
         super.init()
         
@@ -168,8 +165,6 @@ extension ARCameraRecordingManager: RecordingManager {
             numFrames = 0
             
             if let currentFrame = session.currentFrame {
-                cameraIntrinsic = currentFrame.camera.intrinsics
-                
                 // get depth resolution
                 if let depthData = currentFrame.sceneDepth {
                     
@@ -226,7 +221,7 @@ extension ARCameraRecordingManager: ARSessionDelegate {
             return
         }
         
-        guard let depthData = frame.sceneDepth else {
+        guard let depthData = frame.sceneDepth  else {
             print("Failed to acquire depth data.")
             return
         }
@@ -235,7 +230,7 @@ extension ARCameraRecordingManager: ARSessionDelegate {
         let colorImage: CVPixelBuffer = frame.capturedImage
         
         let timestamp: CMTime = CMTime(seconds: frame.timestamp, preferredTimescale: 1_000_000_000)
-        
+
         print("**** @Controller: depth \(numFrames) ****")
         depthRecorder.update(depthMap)
         

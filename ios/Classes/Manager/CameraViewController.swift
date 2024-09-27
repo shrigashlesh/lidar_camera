@@ -4,12 +4,14 @@ import UIKit
 
 class CameraViewController: UIViewController {
     
-    private var recordingManager: RecordingManager! = nil
-    
+    private var recordingManager: ARCameraRecordingManager! = nil
     private var recordButton: RecordButton!
+    private var recordedTimeView: RecordedTimeView! // Add RecordedTimeView
     
-    var progressTimer: Timer?
-    var progress: CGFloat = 0
+    var progress: CGFloat = 0.0
+    let maxDuration: TimeInterval = 5.0 // Maximum recording duration in seconds
+    var startTime: TimeInterval = 0.0 // To track the start time
+    var timer: Timer? // Timer for regular updates
     
     init() {
         super.init(nibName: nil, bundle: nil)
@@ -24,18 +26,7 @@ class CameraViewController: UIViewController {
         view.backgroundColor = .black
         initRecordingManagerAndPerformRecordingModeRelatedSetup()
         setupRecordButton()
-    }
-    
-    @objc func updateProgress() {
-        let maxDuration = CGFloat(5)
-        progress += (CGFloat(0.05) / maxDuration)
-        DispatchQueue.main.async { [weak self] in
-            self?.recordButton.setProgress(self?.progress ?? 0)
-        }
-        
-        if progress >= 1 {
-            stopRecording()
-        }
+        setupRecordedTimeView() // Setup the RecordedTimeView
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -71,6 +62,20 @@ class CameraViewController: UIViewController {
         previewView.backgroundColor = .black
     }
     
+    private func setupRecordedTimeView() {
+        recordedTimeView = RecordedTimeView(frame: CGRect(x: 0, y: 0, width: 100, height: 40))
+        recordedTimeView.translatesAutoresizingMaskIntoConstraints = false
+        
+        view.addSubview(recordedTimeView)
+        
+        NSLayoutConstraint.activate([
+            recordedTimeView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor, constant: 20),
+            recordedTimeView.centerXAnchor.constraint(equalTo: view.centerXAnchor)
+        ])
+        
+        recordedTimeView.updateTime(positionalTime: CMTime.zero.positionalTime, isRecording: false) // Initial state
+    }
+    
     @objc func recordButtonTapped() {
         if recordingManager.isRecording {
             stopRecording()
@@ -98,16 +103,30 @@ class CameraViewController: UIViewController {
     
     func startRecording() {
         progress = 0
+        startTime = Date().timeIntervalSince1970 // Record the start time
         recordingManager.startRecording()
         
-        DispatchQueue.main.async { [weak self] in
-            self?.progressTimer = Timer.scheduledTimer(timeInterval: 0.05, target: self!, selector: #selector(self!.updateProgress), userInfo: nil, repeats: true)
-        }
+        // Start a timer for smooth progress updates
+        timer = Timer.scheduledTimer(timeInterval: 0.05, target: self, selector: #selector(updateProgress), userInfo: nil, repeats: true)
     }
     
     func stopRecording() {
-        progressTimer?.invalidate()
-        progress = 0
         recordingManager.stopRecording()
+        timer?.invalidate() // Invalidate the timer
+        // Update RecordedTimeView to show not recording state
+        recordedTimeView.updateTime(positionalTime: CMTime.zero.positionalTime, isRecording: false)
+    }
+    
+    @objc private func updateProgress() {
+        let elapsedTime = Date().timeIntervalSince1970 - startTime // Calculate elapsed time
+        if elapsedTime < maxDuration {
+            progress = CGFloat(elapsedTime / maxDuration)
+            recordButton.setProgress(progress)
+            recordedTimeView.updateTime(positionalTime: CMTime(seconds: elapsedTime, preferredTimescale: 1_000_000_000).positionalTime, isRecording: true) // Update positional time
+        } else {
+            progress = 1.0
+            recordButton.setProgress(progress)
+            stopRecording() // Stop recording if max duration is reached
+        }
     }
 }

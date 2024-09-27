@@ -1,9 +1,10 @@
+import 'dart:io';
 import 'dart:math' as math;
-import 'dart:developer';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:lidar_camera/lidar_camera.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 
 void main() {
@@ -117,22 +118,21 @@ class _PickerViewState extends State<PickerView> {
                     frameNumber: 12,
                   );
                   if (properties == null) return;
-                  final depthValues = properties.originalDepthMap;
-                  // Flatten the list of lists into a single list
-                  List<double> flattenedList =
-                      depthValues.expand((i) => i).toList();
 
-                  // Find min and max values
-                  double minValue = flattenedList.reduce(math.min);
-                  double maxValue = flattenedList.reduce(math.max);
+                  final documentsDirectory =
+                      await getApplicationDocumentsDirectory();
+                  Directory directory =
+                      Directory("${documentsDirectory.path}/tiff_images/");
+                  directory = await directory.create(recursive: true);
+                  final outputPath = "${directory.path}img.tiff";
 
-                  log('Min value: $minValue');
-                  log('Max value: $maxValue');
-                  final bytes = properties.depthImage192x256;
+                  properties.saveImage(outputPath);
+
+                  print(properties.getDepthAt(x: 66, y: 5));
                   if (!mounted) return;
-                  setState(() {
-                    depthImageBytes = bytes;
-                  });
+                  // setState(() {
+                  //   depthImageBytes = bytes;
+                  // });
                 },
                 child: const Text("Pick Video"),
               ),

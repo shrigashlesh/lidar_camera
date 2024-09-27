@@ -1,9 +1,9 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:vector_math/vector_math_64.dart';
 import 'package:lidar_camera/utils/json_converter.dart';
 import 'package:image/image.dart' as img;
-
 part 'depth_conversion_properties.g.dart';
 
 @JsonSerializable()
@@ -13,9 +13,9 @@ class DepthConversionProperties {
     required this.cameraIntrinsic,
     required this.depth,
   }) {
-    final extractedResult = _generateImageAndDepthArray(depth);
-    _depthImage = extractedResult.$1;
-    _orgDepthMap = extractedResult.$2;
+    final extractedResult = _generateImage(depth);
+    _image = extractedResult;
+    // _orgDepthMap = extractedResult.$2;
   }
 
   @Matrix4Converter()
@@ -28,9 +28,7 @@ class DepthConversionProperties {
   @Uint8ListConverter()
   final Uint8List depth;
 
-  late img.Image _depthImage;
-  late List<List<double>> _orgDepthMap;
-
+  late img.Image _image;
   static DepthConversionProperties fromJson(Map<String, dynamic> json) =>
       _$DepthConversionPropertiesFromJson(json);
 
@@ -40,62 +38,47 @@ class DepthConversionProperties {
   String toString() =>
       'DepthConversionProperties(transform: $transform, cameraIntrinsic: $cameraIntrinsic, depth: $depth)';
 
-  List<List<double>> get originalDepthMap => _orgDepthMap;
-
-  Uint8List get depthImage192x256 {
-    // Use the cached resized image and return it as PNG
-    Uint8List pngBytes = Uint8List.fromList(img.encodePng(_depthImage));
-    return pngBytes;
+  saveImage(String output) {
+    final tiffBytes = img.encodeTiff(_image);
+    File file = File(output);
+    file.writeAsBytes(tiffBytes);
   }
 
-  static (img.Image, List<List<double>>) _generateImageAndDepthArray(
-      Uint8List depth) {
+  num getDepthAt({required int x, required int y}) {
+    final pixel = _image.getPixel(x, y);
+    return pixel.r;
+  }
+
+  static img.Image _generateImage(Uint8List depth) {
     final ByteData byteData = ByteData.sublistView(depth);
 
-    int originalWidth = 256;
-    int originalHeight = 192;
-
-    // Create image and depth map
-    img.Image image = img.Image(width: originalWidth, height: originalHeight);
-    List<List<double>> depthMap = List.generate(
-      originalHeight,
-      (row) => List.generate(
-        originalWidth,
-        (col) => 0.0,
-      ),
-    );
-
-    // Fill image and depth map
-    for (int y = 0; y < originalHeight; y++) {
-      for (int x = 0; x < originalWidth; x++) {
-        int originalIndex = y * originalWidth + x;
-        int accessAt = originalIndex * 4;
-        double depthValue = byteData.getFloat32(accessAt, Endian.little);
-        depthMap[y][x] = depthValue;
-        int grayscale = (depthValue / 5 * 255).clamp(0, 255).toInt();
-        image.setPixelRgba(x, y, grayscale, grayscale, grayscale, 255);
-      }
+    const width = 256;
+    const height = 192;
+    const numBytesPerFloat = 4;
+    if (depth.length != width * height * numBytesPerFloat) {
+      throw Exception(
+          'Raw data size does not match expected 256x192 float32 format');
     }
 
-    // Rotate depth map by 90 degrees
-    List<List<double>> rotatedDepthMap = List.generate(
-      originalWidth,
-      (col) => List.generate(
-        originalHeight,
-        (row) => depthMap[originalHeight - row - 1][col],
-      ),
+    final orgImage = img.Image.fromBytes(
+      width: width,
+      height: height,
+      bytes: byteData.buffer,
+      format: img.Format.float32,
+      numChannels: 1,
     );
 
-    // Rotate image by 90 degrees
-    img.Image rotatedImage =
-        img.Image(height: originalWidth, width: originalHeight);
-    for (int y = 0; y < originalHeight; y++) {
-      for (int x = 0; x < originalWidth; x++) {
-        img.Pixel pixel = image.getPixel(x, y);
-        rotatedImage.setPixel(originalHeight - 1 - y, x, pixel);
-      }
-    }
+    // Rotate the image by 90 degrees clockwise
+    final rotatedImage = img.copyRotate(orgImage, angle: 90);
 
-    return (rotatedImage, rotatedDepthMap);
+    // Resize the rotated image to 1440x1920 using bicubic interpolation
+    final resizedImage = img.copyResize(
+      rotatedImage,
+      width: 1440,
+      height: 1920,
+      interpolation: img.Interpolation.average,
+    );
+
+    return resizedImage;
   }
 }
