@@ -1,9 +1,8 @@
 //
 //  CameraInfoRecorder.swift
-//  LiDARDepth
+//  lidar_camera
 //
-//  Created by Zheren Xiao on 2020-10-08.
-//  Copyright © 2020 jx16. All rights reserved.
+//  Created by Shrig Solutions on 26/09/2024.
 //
 
 import CoreMedia

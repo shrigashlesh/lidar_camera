@@ -1,32 +1,27 @@
 //
 //  Helper.swift
-//  ScannerApp-Swift
+//  lidar_camera
 //
-//  Created by Zheren Xiao on 2020-02-10.
-//  Copyright © 2020 jx16. All rights reserved.
+//  Created by Shrig Solutions on 26/09/2024.
 //
-
-import CommonCrypto
 import CoreLocation
 import Foundation
 import UIKit
 
 struct Helper {
     
-    // this assume gps authorization has been done previously
-    static func getGpsLocation(locationManager: CLLocationManager) -> [Double] {
-        
-        var gpsLocation: [Double] = []
-        
-        if (CLLocationManager.authorizationStatus() == .authorizedWhenInUse ||
-            CLLocationManager.authorizationStatus() == .authorizedAlways) {
-            if let coordinate = locationManager.location?.coordinate {
-                gpsLocation = [coordinate.latitude, coordinate.longitude]
+    static func getGpsLocation(locationManager: CLLocationManager) -> CLLocation? {
+            
+        // Use the instance method to get the authorization status
+        let authorizationStatus = locationManager.authorizationStatus
+        if authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways {
+            if let location = locationManager.location {
+                return location
             }
         }
-        
-        return gpsLocation
+        return nil
     }
+
     
     static func getRecordingId() -> String {
         let dateFormatter = DateFormatter()

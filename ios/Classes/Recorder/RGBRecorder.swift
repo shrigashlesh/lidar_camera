@@ -1,12 +1,9 @@
 //
-//  MovieRecorder.swift
-//  LiDARDepth
+//  RGBRecorder.swift
+//  lidar_camera
 //
-//  Created by Zheren Xiao on 2020-09-24.
-//  Copyright © 2020 jx16. All rights reserved.
+//  Created by Shrig Solutions on 26/09/2024.
 //
-
-// This file is based on the MovieRecorder in Apple's sample app AVMultiCamPip
 
 import AVFoundation
 import Foundation
@@ -25,9 +22,10 @@ class RGBRecorder: NSObject, Recorder {
     private var videoSettings: [String: Any]
     
     private var count: Int32 = 0
-    
-    init(videoSettings: [String: Any]) {
+    private var location: CLLocation? = nil
+    init(videoSettings: [String: Any], location: CLLocation?) {
         self.videoSettings = videoSettings
+        self.location = location
     }
     
     func prepareForRecording(recordingId: String) {
@@ -160,6 +158,7 @@ class RGBRecorder: NSObject, Recorder {
                 let creationRequest = PHAssetCreationRequest.forAsset()
                 creationRequest.addResource(with: .video, fileURL: videoURL, options: nil)
                 creationRequest.creationDate = Date()
+                creationRequest.location = self.location
                 
             }) { success, error in
                 if success {

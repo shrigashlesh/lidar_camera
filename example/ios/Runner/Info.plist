@@ -55,5 +55,9 @@
 	<true/>
 	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>This app uses location always</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app uses location when in use</string>
 </dict>
 </plist>

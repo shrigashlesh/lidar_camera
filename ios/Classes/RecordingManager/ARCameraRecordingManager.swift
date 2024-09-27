@@ -5,7 +5,7 @@
 //  Created by Shrig Solutions on 27/09/2024.
 //
 import ARKit
-
+import CoreLocation
 @available(iOS 14.0, *)
 class ARCameraRecordingManager: NSObject {
     
@@ -24,9 +24,7 @@ class ARCameraRecordingManager: NSObject {
     var isRecording: Bool = false
     
     private let locationManager = CLLocationManager()
-    private var gpsLocation: [Double] = []
     
-    private var cameraIntrinsic: simd_float3x3?
     private var colorFrameResolution: [Int] = []
     private var depthFrameResolution: [Int] = []
     private var frequency: Int?
@@ -38,7 +36,9 @@ class ARCameraRecordingManager: NSObject {
         sessionQueue.async {
             self.configureSession()
         }
-        setupAudioSession()
+        audioRecorderQueue.async {
+            self.setupAudioSession()
+        }
     }
     
     deinit {
@@ -116,23 +116,23 @@ class ARCameraRecordingManager: NSObject {
     private func configureSession() {
         
         let configuration = ARWorldTrackingConfiguration()
-
+        
         // Enable only scene depth
         if ARWorldTrackingConfiguration.supportsFrameSemantics(.sceneDepth) {
-            configuration.frameSemantics = [.sceneDepth]  // Set only scene depth
+            configuration.frameSemantics = .sceneDepth
         }
-
+        
         // Optionally, set the video format if available
         if let format = find4by3VideoFormat() {
             configuration.videoFormat = format
         } else {
             print("No 4:3 video format is available")
         }
-
+        
         // Set session delegate and run the session
         session.delegate = self
         session.run(configuration)
-
+        
         
         let videoFormat = configuration.videoFormat
         frequency = videoFormat.framesPerSecond
@@ -140,7 +140,8 @@ class ARCameraRecordingManager: NSObject {
         colorFrameResolution = [Int(imageResolution.height), Int(imageResolution.width)]
         
         let videoSettings: [String: Any] = [AVVideoCodecKey: AVVideoCodecType.h264, AVVideoHeightKey: NSNumber(value: colorFrameResolution[0]), AVVideoWidthKey: NSNumber(value: colorFrameResolution[1])]
-        rgbRecorder = RGBRecorder(videoSettings: videoSettings)
+        let location = Helper.getGpsLocation(locationManager: locationManager)
+        rgbRecorder = RGBRecorder(videoSettings: videoSettings, location: location)
     }
 }
 
@@ -155,12 +156,11 @@ extension ARCameraRecordingManager: RecordingManager {
     func startRecording() {
         do{
             try activateAudioSession()
-        }catch{
-            
+        } catch{
+            print("Couldn't activate audio session")
         }
         sessionQueue.async { [self] in
             
-            gpsLocation = Helper.getGpsLocation(locationManager: locationManager)
             
             numFrames = 0
             
@@ -181,9 +181,7 @@ extension ARCameraRecordingManager: RecordingManager {
             }
             
             print("pre1 count: \(numFrames)")
-            
             recordingId = Helper.getRecordingId()
-            
             depthRecorder.prepareForRecording(recordingId: recordingId)
             rgbRecorder.prepareForRecording(recordingId: recordingId)
             cameraInfoRecorder.prepareForRecording(recordingId: recordingId)
@@ -230,7 +228,7 @@ extension ARCameraRecordingManager: ARSessionDelegate {
         let colorImage: CVPixelBuffer = frame.capturedImage
         
         let timestamp: CMTime = CMTime(seconds: frame.timestamp, preferredTimescale: 1_000_000_000)
-
+        
         print("**** @Controller: depth \(numFrames) ****")
         depthRecorder.update(depthMap)
         
