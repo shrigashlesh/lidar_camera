@@ -1,10 +1,7 @@
-import 'dart:io';
-import 'dart:math' as math;
-import 'dart:typed_data';
+import 'dart:developer';
 
 import 'package:flutter/material.dart';
 import 'package:lidar_camera/lidar_camera.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
 
 void main() {
@@ -72,8 +69,6 @@ class PickerView extends StatefulWidget {
 }
 
 class _PickerViewState extends State<PickerView> {
-  Uint8List? depthImageBytes;
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -86,15 +81,6 @@ class _PickerViewState extends State<PickerView> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              if (depthImageBytes != null)
-                Transform.rotate(
-                  angle: math.pi / 2,
-                  child: Image.memory(
-                    depthImageBytes!,
-                    height: 600,
-                    fit: BoxFit.contain,
-                  ),
-                ),
               ElevatedButton(
                 onPressed: () async {
                   final List<AssetEntity>? result =
@@ -114,25 +100,12 @@ class _PickerViewState extends State<PickerView> {
                   final cleanedName = fileName.split('.').first;
                   final LidarCamera cam = LidarCamera();
                   final properties = await cam.readDepthConversionData(
-                    fileName: cleanedName,
+                    recordingUUID: cleanedName,
                     frameNumber: 12,
                   );
                   if (properties == null) return;
-
-                  final documentsDirectory =
-                      await getApplicationDocumentsDirectory();
-                  Directory directory =
-                      Directory("${documentsDirectory.path}/tiff_images/");
-                  directory = await directory.create(recursive: true);
-                  final outputPath = "${directory.path}img.tiff";
-
-                  properties.saveImage(outputPath);
-
-                  print(properties.getDepthAt(x: 66, y: 5));
+                  log(properties.toString());
                   if (!mounted) return;
-                  // setState(() {
-                  //   depthImageBytes = bytes;
-                  // });
                 },
                 child: const Text("Pick Video"),
               ),

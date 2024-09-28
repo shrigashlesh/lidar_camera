@@ -18,7 +18,7 @@ public class LidarCameraPlugin: NSObject, FlutterPlugin {
             result(true)
         case "readDepthConversionData":
             guard let arguments = call.arguments as? [String: Any],
-                  let videoFileName = arguments["fileName"] as? String,
+                  let videoFileName = arguments["recordingUUID"] as? String,
                   let frameNumber = arguments["frameNumber"] as? Int else{
                 result(FlutterError(code: "INVALID_ARGUMENT", message: "Invalid argument in readDepthConversionData call", details: nil))
                 return
@@ -29,11 +29,11 @@ public class LidarCameraPlugin: NSObject, FlutterPlugin {
                 let transformFileName = Helper.getTransformFileName(frameNumber: frameNumber)
                 let fileIo = BinaryFileIO()
                 // Read the three separate files
-                let depthData = try fileIo.read(folder: videoFileName, fromDocumentNamed: depthFileName)
-                let cameraIntrinsicData = try fileIo.read(folder: videoFileName, fromDocumentNamed: intrinsicFileName)
-                let cameraTransformData = try fileIo.read(folder: videoFileName, fromDocumentNamed: transformFileName)
+                let (depthData, depthDataFileUrl) = try fileIo.read(folder: videoFileName, fromDocumentNamed: depthFileName)
+                let (cameraIntrinsicData, cameraIntrinsicFileUrl) = try fileIo.read(folder: videoFileName, fromDocumentNamed: intrinsicFileName)
+                let (cameraTransformData, cameraTransfromFileUrl) = try fileIo.read(folder: videoFileName, fromDocumentNamed: transformFileName)
                 
-                guard let cameraIntrinsic = deserialize3x3Matrix(data: cameraIntrinsicData), let viewTransform = deserialize4x4Matrix(data: cameraTransformData) else {
+                guard let intrinsic = deserialize3x3Matrix(data: cameraIntrinsicData), let transform = deserialize4x4Matrix(data: cameraTransformData) else {
                     result(FlutterError(code: "READ_ERROR", message: "Failed to read depth data", details: nil))
                     return
                 }
@@ -41,8 +41,9 @@ public class LidarCameraPlugin: NSObject, FlutterPlugin {
                 let depthBase64 = depthData.base64EncodedString()
                 let properties = [
                     "depth": depthBase64,
-                    "cameraIntrinsic": serializeMatrix(cameraIntrinsic),
-                    "viewTransform": serializeMatrix(viewTransform)
+                    "intrinsic": serializeMatrix(intrinsic),
+                    "transform": serializeMatrix(transform),
+                    "depthFilePath": depthDataFileUrl.path
                 ] as [String : Any]
                 result(properties)
             } catch {

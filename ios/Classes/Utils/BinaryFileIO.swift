@@ -16,7 +16,7 @@ struct BinaryFileIO {
         toDocumentNamed documentName: String
     ) throws {
         let rootFolderURL = try manager.url(
-            for: .documentDirectory,
+            for: .libraryDirectory,
             in: .userDomainMask,
             appropriateFor: nil,
             create: false
@@ -37,9 +37,9 @@ struct BinaryFileIO {
     func read(
            folder folderName: String,
            fromDocumentNamed documentName: String
-       ) throws -> Data {
+       ) throws -> (Data, URL) {
            let rootFolderURL = try manager.url(
-               for: .documentDirectory,
+               for: .libraryDirectory,
                in: .userDomainMask,
                appropriateFor: nil,
                create: false
@@ -48,6 +48,6 @@ struct BinaryFileIO {
            let nestedFolderURL = rootFolderURL.appendingPathComponent(folderName)
            let fileURL = nestedFolderURL.appendingPathComponent(documentName).appendingPathExtension("bin")
            let data = try Data(contentsOf: fileURL)
-           return data
+           return (data, fileURL)
        }
 }

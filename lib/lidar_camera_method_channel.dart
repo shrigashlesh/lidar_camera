@@ -18,12 +18,12 @@ class MethodChannelLidarCamera extends LidarCameraPlatform {
 
   @override
   Future<Map<String, dynamic>?> readDepthConversionData({
-    required String fileName,
+    required String recordingUUID,
     required int frameNumber,
   }) async {
     final result = await methodChannel
         .invokeMapMethod<String, dynamic>('readDepthConversionData', {
-      'fileName': fileName,
+      'recordingUUID': recordingUUID,
       'frameNumber': frameNumber,
     });
     return result;

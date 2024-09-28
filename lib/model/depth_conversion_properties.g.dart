@@ -9,18 +9,17 @@ part of 'depth_conversion_properties.dart';
 DepthConversionProperties _$DepthConversionPropertiesFromJson(
         Map<String, dynamic> json) =>
     DepthConversionProperties(
-      transform:
-          const Matrix4Converter().fromJson(json['viewTransform'] as List),
-      cameraIntrinsic:
-          const Matrix3Converter().fromJson(json['cameraIntrinsic'] as List),
+      transform: const Matrix4Converter().fromJson(json['transform'] as List),
+      intrinsic: const Matrix3Converter().fromJson(json['intrinsic'] as List),
       depth: const Uint8ListConverter().fromJson(json['depth'] as String),
+      depthFilePath: json['depthFilePath'] as String,
     );
 
 Map<String, dynamic> _$DepthConversionPropertiesToJson(
         DepthConversionProperties instance) =>
     <String, dynamic>{
-      'viewTransform': const Matrix4Converter().toJson(instance.transform),
-      'cameraIntrinsic':
-          const Matrix3Converter().toJson(instance.cameraIntrinsic),
+      'transform': const Matrix4Converter().toJson(instance.transform),
+      'intrinsic': const Matrix3Converter().toJson(instance.intrinsic),
       'depth': const Uint8ListConverter().toJson(instance.depth),
+      'depthFilePath': instance.depthFilePath,
     };

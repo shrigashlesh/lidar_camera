@@ -4,6 +4,7 @@ import 'package:lidar_camera/model/depth_conversion_properties.dart';
 
 import 'lidar_camera_platform_interface.dart';
 export './widget/lidar_camera_view.dart';
+export './utils/json_converter.dart';
 
 class LidarCamera {
   Future<bool?> checkLidarAvailability() {
@@ -11,13 +12,13 @@ class LidarCamera {
   }
 
   Future<DepthConversionProperties?> readDepthConversionData({
-    required String fileName,
+    required String recordingUUID,
     required int frameNumber,
   }) async {
     try {
       final conversionData =
           await LidarCameraPlatform.instance.readDepthConversionData(
-        fileName: fileName,
+        recordingUUID: recordingUUID,
         frameNumber: frameNumber,
       );
       if (conversionData == null) return null;

@@ -12,7 +12,7 @@ class MockLidarCameraPlatform
 
   @override
   Future<Map<String, dynamic>?> readDepthConversionData({
-    required String fileName,
+    required String recordingUUID,
     required int frameNumber,
   }) {
     return Future.value({});
