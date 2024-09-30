@@ -99,13 +99,15 @@ class _PickerViewState extends State<PickerView> {
                   final fileName = await file.titleAsync;
                   final cleanedName = fileName.split('.').first;
                   final LidarDepthReader cam = LidarDepthReader();
-                  final properties = await cam.readDepthConversionData(
-                    recordingUUID: cleanedName,
-                    frameNumber: 12,
-                  );
-                  if (properties == null) return;
-                  log(properties.toString());
-                  if (!mounted) return;
+                  try {
+                    final properties = await cam.readDepthConversionData(
+                      recordingUUID: cleanedName,
+                      frameNumber: 12,
+                    );
+                    log(properties.toString());
+                  } catch (e) {
+                    log(e.toString());
+                  }
                 },
                 child: const Text("Pick Video"),
               ),

@@ -10,7 +10,7 @@ class LidarDepthReader {
     return LidarCameraPlatform.instance.checkLidarAvailability();
   }
 
-  Future<DepthConversionProperties?> readDepthConversionData({
+  Future<DepthConversionProperties> readDepthConversionData({
     required String recordingUUID,
     required int frameNumber,
   }) async {
@@ -20,7 +20,9 @@ class LidarDepthReader {
         recordingUUID: recordingUUID,
         frameNumber: frameNumber,
       );
-      if (conversionData == null) return null;
+      if (conversionData == null) {
+        throw DepthReaderException(code: "READ_ERROR");
+      }
       final properties = DepthConversionProperties.fromJson(conversionData);
 
       return properties;
