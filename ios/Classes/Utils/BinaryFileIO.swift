@@ -16,7 +16,7 @@ struct BinaryFileIO {
         toDocumentNamed documentName: String
     ) throws {
         let rootFolderURL = try manager.url(
-            for: .libraryDirectory,
+            for: .documentDirectory,
             in: .userDomainMask,
             appropriateFor: nil,
             create: false
@@ -39,7 +39,7 @@ struct BinaryFileIO {
            fromDocumentNamed documentName: String
        ) throws -> (Data, URL) {
            let rootFolderURL = try manager.url(
-               for: .libraryDirectory,
+               for: .documentDirectory,
                in: .userDomainMask,
                appropriateFor: nil,
                create: false
