@@ -35,9 +35,13 @@ class Matrix3Converter implements JsonConverter<Matrix3, List<List<num>>> {
 
   @override
   Matrix3 fromJson(List<dynamic> json) {
-    // Flatten the nested list into a single list and convert to Matrix3
-    final flatList =
-        json.expand((row) => row).cast<num>().map((e) => e.toDouble()).toList();
+    // Ensure correct casting
+    final flatList = json
+        .map((row) => (row as List<dynamic>).cast<num>())
+        .expand((row) => row)
+        .map((e) => e.toDouble())
+        .toList();
+
     return Matrix3.fromList(flatList)..transpose();
   }
 
@@ -60,9 +64,13 @@ class Matrix4Converter implements JsonConverter<Matrix4, List<List<num>>> {
 
   @override
   Matrix4 fromJson(List<dynamic> json) {
-    // Flatten the nested list into a single list and convert to Matrix4
-    final flatList =
-        json.expand((row) => row).cast<num>().map((e) => e.toDouble()).toList();
+    // Ensure correct casting
+    final flatList = json
+        .map((row) => (row as List<dynamic>).cast<num>())
+        .expand((row) => row)
+        .map((e) => e.toDouble())
+        .toList();
+
     return Matrix4.fromList(flatList)..transpose();
   }
 

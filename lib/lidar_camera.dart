@@ -1,3 +1,5 @@
+import 'dart:developer';
+
 import 'package:flutter/services.dart';
 import 'package:lidar_camera/model/depth_conversion_properties.dart';
 
@@ -27,6 +29,7 @@ class LidarDepthReader {
 
       return properties;
     } on PlatformException catch (e) {
+      log(e.toString());
       throw DepthReaderException(code: e.code);
     } catch (_) {
       rethrow;
