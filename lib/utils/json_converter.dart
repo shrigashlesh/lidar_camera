@@ -29,13 +29,12 @@ class Matrix3Converter implements JsonConverter<Matrix3, List<List<num>>> {
     // Flatten the nested list into a single list and convert to Matrix3
     final flatList =
         json.expand((row) => row).cast<num>().map((e) => e.toDouble()).toList();
-    return Matrix3.fromList(flatList);
+    return Matrix3.fromList(flatList)..transpose();
   }
 
   @override
   List<List<num>> toJson(Matrix3 matrix) {
     final list = List.filled(9, 0.0);
-    matrix.transpose();
     matrix.copyIntoArray(list);
 
     // Convert flat list into a 3x3 nested list
@@ -55,13 +54,12 @@ class Matrix4Converter implements JsonConverter<Matrix4, List<List<num>>> {
     // Flatten the nested list into a single list and convert to Matrix4
     final flatList =
         json.expand((row) => row).cast<num>().map((e) => e.toDouble()).toList();
-    return Matrix4.fromList(flatList);
+    return Matrix4.fromList(flatList)..transpose();
   }
 
   @override
   List<List<num>> toJson(Matrix4 matrix) {
     final list = List.filled(16, 0.0);
-    matrix.transpose();
     matrix.copyIntoArray(list);
 
     // Convert flat list into a 4x4 nested list
