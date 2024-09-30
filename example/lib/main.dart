@@ -98,7 +98,7 @@ class _PickerViewState extends State<PickerView> {
                   if (file == null) return;
                   final fileName = await file.titleAsync;
                   final cleanedName = fileName.split('.').first;
-                  final LidarCamera cam = LidarCamera();
+                  final LidarDepthReader cam = LidarDepthReader();
                   final properties = await cam.readDepthConversionData(
                     recordingUUID: cleanedName,
                     frameNumber: 12,

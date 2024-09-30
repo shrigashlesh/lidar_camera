@@ -27,7 +27,7 @@ void main() {
   });
 
   test('checkLidarAvailability', () async {
-    LidarCamera lidarCameraPlugin = LidarCamera();
+    LidarDepthReader lidarCameraPlugin = LidarDepthReader();
     MockLidarCameraPlatform fakePlatform = MockLidarCameraPlatform();
     LidarCameraPlatform.instance = fakePlatform;
 

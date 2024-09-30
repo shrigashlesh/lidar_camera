@@ -1,12 +1,11 @@
-import 'dart:developer';
-
+import 'package:flutter/services.dart';
 import 'package:lidar_camera/model/depth_conversion_properties.dart';
 
 import 'lidar_camera_platform_interface.dart';
 export './widget/lidar_camera_view.dart';
 export './utils/json_converter.dart';
 
-class LidarCamera {
+class LidarDepthReader {
   Future<bool?> checkLidarAvailability() {
     return LidarCameraPlatform.instance.checkLidarAvailability();
   }
@@ -25,9 +24,10 @@ class LidarCamera {
       final properties = DepthConversionProperties.fromJson(conversionData);
 
       return properties;
-    } catch (e) {
-      log("$e");
+    } on PlatformException catch (e) {
+      throw DepthReaderException(code: e.code);
+    } catch (_) {
+      rethrow;
     }
-    return null;
   }
 }

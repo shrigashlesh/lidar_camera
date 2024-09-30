@@ -1,11 +1,19 @@
-import 'dart:typed_data';
-
+import 'package:flutter/services.dart';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:vector_math/vector_math_64.dart';
 
 import 'package:lidar_camera/utils/json_converter.dart';
 
 part 'depth_conversion_properties.g.dart';
+
+class DepthReaderException extends PlatformException {
+  DepthReaderException({required super.code});
+
+  @override
+  String toString() {
+    return "Reading the depth properties failed. Please try with a different video.";
+  }
+}
 
 @JsonSerializable()
 class DepthConversionProperties {
