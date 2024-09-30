@@ -5,31 +5,6 @@ import 'dart:typed_data';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:vector_math/vector_math_64.dart';
 
-class Dimension {
-  final int height;
-  final int width;
-  const Dimension({
-    required this.height,
-    required this.width,
-  });
-}
-
-class DimensionConverter implements JsonConverter<Dimension, List<int>> {
-  const DimensionConverter();
-
-  @override
-  Dimension fromJson(List<dynamic> json) {
-    // Expecting json to be in the format [height, width]
-    return Dimension(height: json[0], width: json[1]);
-  }
-
-  @override
-  List<int> toJson(Dimension dimension) {
-    // Return the size as [height, width]
-    return [dimension.height, dimension.width];
-  }
-}
-
 class Matrix3Converter implements JsonConverter<Matrix3, List<List<num>>> {
   const Matrix3Converter();
 
