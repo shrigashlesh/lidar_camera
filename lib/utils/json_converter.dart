@@ -1,23 +1,32 @@
+// ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:convert';
 import 'dart:typed_data';
-import 'dart:ui';
 
 import 'package:json_annotation/json_annotation.dart';
 import 'package:vector_math/vector_math_64.dart';
 
-class SizeConverter implements JsonConverter<Size, List<int>> {
-  const SizeConverter();
+class Dimension {
+  final int width;
+  final int height;
+  const Dimension({
+    required this.width,
+    required this.height,
+  });
+}
+
+class DimensionConverter implements JsonConverter<Dimension, List<int>> {
+  const DimensionConverter();
 
   @override
-  Size fromJson(List<dynamic> json) {
+  Dimension fromJson(List<dynamic> json) {
     // Expecting json to be in the format [width, height]
-    return Size(json[0], json[1]);
+    return Dimension(width: json[0], height: json[1]);
   }
 
   @override
-  List<int> toJson(Size size) {
+  List<int> toJson(Dimension size) {
     // Return the size as [width, height]
-    return [size.width.toInt(), size.height.toInt()];
+    return [size.width, size.height];
   }
 }
 

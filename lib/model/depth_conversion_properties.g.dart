@@ -9,8 +9,10 @@ part of 'depth_conversion_properties.dart';
 DepthConversionProperties _$DepthConversionPropertiesFromJson(
         Map<String, dynamic> json) =>
     DepthConversionProperties(
-      transform: const Matrix4Converter().fromJson(json['transform'] as List),
-      intrinsic: const Matrix3Converter().fromJson(json['intrinsic'] as List),
+      transform: const Matrix4Converter()
+          .fromJson(json['transform'] as List<List<num>>),
+      intrinsic: const Matrix3Converter()
+          .fromJson(json['intrinsic'] as List<List<num>>),
       depth: const Uint8ListConverter().fromJson(json['depth'] as String),
       depthFilePath: json['depthFilePath'] as String,
     );
