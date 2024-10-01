@@ -143,8 +143,6 @@ class RGBRecorder: NSObject, Recorder {
         }
     }
     
-    
-    
     func saveVideoToGallery(videoURL: URL) {
         // Request authorization if not already done
         PHPhotoLibrary.requestAuthorization { status in
@@ -152,22 +150,55 @@ class RGBRecorder: NSObject, Recorder {
                 print("Permission not granted to access photo library")
                 return
             }
-            
+
+            // Begin the changes in the photo library
             PHPhotoLibrary.shared().performChanges({
-                // Create a new asset creation request
+                // Check if the album already exists
+                let albumName = "Fishtechy"
+                var albumChangeRequest: PHAssetCollectionChangeRequest?
+                var albumPlaceholder: PHObjectPlaceholder?
+                
+                let fetchOptions = PHFetchOptions()
+                fetchOptions.predicate = NSPredicate(format: "title = %@", albumName)
+                let albumFetch = PHAssetCollection.fetchAssetCollections(with: .album, subtype: .any, options: fetchOptions)
+                
+                if let existingAlbum = albumFetch.firstObject {
+                    // Album exists, fetch it
+                    albumChangeRequest = PHAssetCollectionChangeRequest(for: existingAlbum)
+                } else {
+                    // Album does not exist, create it
+                    albumChangeRequest = PHAssetCollectionChangeRequest.creationRequestForAssetCollection(withTitle: albumName)
+                    albumPlaceholder = albumChangeRequest?.placeholderForCreatedAssetCollection
+                }
+                
+                // Create a new asset creation request for the video
                 let creationRequest = PHAssetCreationRequest.forAsset()
                 creationRequest.addResource(with: .video, fileURL: videoURL, options: nil)
                 creationRequest.creationDate = Date()
-                creationRequest.location = self.location
+
+                // If we just created the album, get the created collection and add the video to it
+                if let albumPlaceholder = albumPlaceholder {
+                    let albumFetchResult = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [albumPlaceholder.localIdentifier], options: nil)
+                    if let newAlbum = albumFetchResult.firstObject {
+                        albumChangeRequest = PHAssetCollectionChangeRequest(for: newAlbum)
+                    }
+                }
                 
+                // Add the video to the album
+                if let albumChangeRequest = albumChangeRequest {
+                    let fastEnumeration = NSArray(array: [creationRequest.placeholderForCreatedAsset!] as [PHObjectPlaceholder])
+                    albumChangeRequest.addAssets(fastEnumeration)
+                }
+
             }) { success, error in
                 if success {
-                    print("Video saved successfully to user photo library.")
+                    print("Video saved successfully to Fishtechy album in user photo library.")
                 } else if let error = error {
                     print("Error saving video: \(error.localizedDescription)")
                 }
             }
         }
-        
     }
+
+
 }
