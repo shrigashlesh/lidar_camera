@@ -68,7 +68,10 @@ class LidarRecordingController {
           break;
         case 'onRecordingCompleted':
           if (onRecordingCompleted != null) {
-            print(call.arguments);
+            if (call.arguments != null) {
+              final recordingPath = call.arguments["recordingPath"];
+              onRecordingCompleted!(recordingPath);
+            }
           }
           break;
         default:
