@@ -7,7 +7,7 @@ import 'lidar_camera_platform_interface.dart';
 class MethodChannelLidarCamera extends LidarCameraPlatform {
   /// The method channel used to interact with the native platform.
   @visibleForTesting
-  final methodChannel = const MethodChannel('lidar_camera');
+  final methodChannel = const MethodChannel('lidar_data_reader');
 
   @override
   Future<bool?> checkLidarAvailability() async {

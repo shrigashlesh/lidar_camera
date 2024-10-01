@@ -29,6 +29,7 @@ class CameraInfo {
 }
 
 class CameraInfoRecorder: Recorder {
+    
     typealias T = CameraInfo
     
     private let cameraInfoRecorderQueue = DispatchQueue(label: "camera info recorder queue")
@@ -79,7 +80,7 @@ class CameraInfoRecorder: Recorder {
        
     }
     
-    func finishRecording() {
+    func finishRecording(completion: ((String?) -> Void)? = nil) {
         cameraInfoRecorderQueue.async {
             print("\(self.count) frames of camera info saved.")
             if self.fileIO != nil {

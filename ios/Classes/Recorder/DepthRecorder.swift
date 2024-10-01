@@ -10,6 +10,7 @@ import CoreVideo
 import Foundation
 
 class DepthRecorder: Recorder {
+    
     typealias T = CVPixelBuffer
     
     private let depthRecorderQueue = DispatchQueue(label: "depth recorder queue")
@@ -45,7 +46,7 @@ class DepthRecorder: Recorder {
         
     }
     
-    func finishRecording() {
+    func finishRecording(completion: ((String?) -> Void)? = nil) {
         depthRecorderQueue.async {
             print("\(self.count) frames of depth saved.")
             if self.fileIO != nil {

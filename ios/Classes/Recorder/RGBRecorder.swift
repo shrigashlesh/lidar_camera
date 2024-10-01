@@ -119,7 +119,7 @@ class RGBRecorder: NSObject, Recorder {
         }
     }
     
-    func finishRecording() {
+    func finishRecording(completion: ((String?) -> Void)? = nil) {
         
         rgbRecorderQueue.async {
             
@@ -135,7 +135,7 @@ class RGBRecorder: NSObject, Recorder {
                     
                     DispatchQueue.main.async { [self] in
                         print("Saving video to gallery at path: \(videoURL.path)")
-                        self.saveVideoToGallery(videoURL: videoURL)
+                        self.saveVideoToGallery(videoURL: videoURL, completion: completion)
                     }
                     self.assetWriter = nil
                 }
@@ -143,15 +143,17 @@ class RGBRecorder: NSObject, Recorder {
         }
     }
     
-    func saveVideoToGallery(videoURL: URL) {
+    func saveVideoToGallery(videoURL: URL, completion: ((String?) -> Void)?) {
         // Request authorization if not already done
         PHPhotoLibrary.requestAuthorization { status in
             guard status == .authorized else {
                 print("Permission not granted to access photo library")
+                completion?(nil) // Return nil if permission is not granted
                 return
             }
 
             // Begin the changes in the photo library
+            var videoPlaceholder: PHObjectPlaceholder? = nil // Declare videoPlaceholder outside
             PHPhotoLibrary.shared().performChanges({
                 // Check if the album already exists
                 let albumName = "Fishtechy"
@@ -173,6 +175,7 @@ class RGBRecorder: NSObject, Recorder {
                 
                 // Create a new asset creation request for the video
                 let creationRequest = PHAssetCreationRequest.forAsset()
+                videoPlaceholder = creationRequest.placeholderForCreatedAsset // Capture the placeholder
                 creationRequest.addResource(with: .video, fileURL: videoURL, options: nil)
                 creationRequest.creationDate = Date()
 
@@ -185,20 +188,65 @@ class RGBRecorder: NSObject, Recorder {
                 }
                 
                 // Add the video to the album
-                if let albumChangeRequest = albumChangeRequest {
-                    let fastEnumeration = NSArray(array: [creationRequest.placeholderForCreatedAsset!] as [PHObjectPlaceholder])
+                if let albumChangeRequest = albumChangeRequest, let videoPlaceholder = videoPlaceholder {
+                    let fastEnumeration = NSArray(array: [videoPlaceholder] as [PHObjectPlaceholder])
                     albumChangeRequest.addAssets(fastEnumeration)
                 }
-
+                
             }) { success, error in
                 if success {
-                    print("Video saved successfully to Fishtechy album in user photo library.")
-                } else if let error = error {
-                    print("Error saving video: \(error.localizedDescription)")
+                    // Fetch the saved video by its placeholder's local identifier
+                    guard let videoPlaceholder = videoPlaceholder else {
+                        completion?(nil) // Return nil if placeholder not found
+                        return
+                    }
+                    
+                    let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [videoPlaceholder.localIdentifier], options: nil)
+                    if let asset = fetchResult.firstObject {
+                        // Get the file URL of the saved asset
+                        self.getAssetFileURL(for: asset) { fileURL in
+                            completion?(fileURL?.path) // Return the file path if available
+                        }
+                    } else {
+                        completion?(nil)
+                    }
+                } else {
+                    if let error = error {
+                        print("Error saving video: \(error.localizedDescription)")
+                    }
+                    completion?(nil) // Return nil on failure
                 }
             }
         }
     }
 
+    // Helper function to get the file URL from PHAsset
+    func getAssetFileURL(for asset: PHAsset, completion: @escaping (URL?) -> Void) {
+        let options = PHAssetResourceRequestOptions()
+        options.isNetworkAccessAllowed = true // Allow fetching from iCloud if needed
+        
+        if let assetResource = PHAssetResource.assetResources(for: asset).first {
+            let fileManager = FileManager.default
+            let tempDir = NSTemporaryDirectory() // Temporary directory to store the file
+            let filePath = (tempDir as NSString).appendingPathComponent(assetResource.originalFilename)
+            let fileURL = URL(fileURLWithPath: filePath)
+            
+            if fileManager.fileExists(atPath: filePath) {
+                completion(fileURL)
+                return
+            }
+            
+            PHAssetResourceManager.default().writeData(for: assetResource, toFile: fileURL, options: options) { error in
+                if let error = error {
+                    print("Error writing asset to file: \(error.localizedDescription)")
+                    completion(nil)
+                } else {
+                    completion(fileURL)
+                }
+            }
+        } else {
+            completion(nil)
+        }
+    }
 
 }

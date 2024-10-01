@@ -20,7 +20,7 @@ class ARCameraRecordingManager: NSObject {
     private let cameraInfoRecorder = CameraInfoRecorder()
     
     private var numFrames: Int = 0
-    private var recordingId: String!
+    var recordingId: String?
     var isRecording: Bool = false
     
     private let locationManager = CLLocationManager()
@@ -182,6 +182,9 @@ extension ARCameraRecordingManager: RecordingManager {
             
             print("pre1 count: \(numFrames)")
             recordingId = Helper.getRecordingId()
+            guard let recordingId = recordingId else {
+                return
+            }
             depthRecorder.prepareForRecording(recordingId: recordingId)
             rgbRecorder.prepareForRecording(recordingId: recordingId)
             cameraInfoRecorder.prepareForRecording(recordingId: recordingId)
@@ -192,21 +195,23 @@ extension ARCameraRecordingManager: RecordingManager {
         }
         
     }
-    
-    func stopRecording() {
+    func stopRecording(completion: ((String?) -> Void)? = nil) {
         deactivateAudioSession()
+        
         sessionQueue.sync { [self] in
-            
             print("post count: \(numFrames)")
             
             isRecording = false
             
+            // Finish the recordings
             depthRecorder.finishRecording()
-            rgbRecorder.finishRecording()
+            rgbRecorder.finishRecording(completion: completion)
             cameraInfoRecorder.finishRecording()
             
         }
     }
+
+  
     
 }
 

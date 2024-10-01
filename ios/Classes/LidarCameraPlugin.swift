@@ -7,7 +7,7 @@ public class LidarCameraPlugin: NSObject, FlutterPlugin {
         let lidarFactory = FlutterLidarCameraFactory(messenger: registrar.messenger())
         registrar.register(lidarFactory, withId: "lidar_cam_view")
         
-        let channel = FlutterMethodChannel(name: "lidar_camera", binaryMessenger: registrar.messenger())
+        let channel = FlutterMethodChannel(name: "lidar_data_reader", binaryMessenger: registrar.messenger())
         let instance = LidarCameraPlugin()
         registrar.addMethodCallDelegate(instance, channel: channel)
     }

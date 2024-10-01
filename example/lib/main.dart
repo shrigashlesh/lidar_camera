@@ -122,15 +122,37 @@ class _PickerViewState extends State<PickerView> {
   }
 }
 
-class CameraView extends StatelessWidget {
+class CameraView extends StatefulWidget {
   const CameraView({super.key});
 
   @override
+  State<CameraView> createState() => _CameraViewState();
+}
+
+class _CameraViewState extends State<CameraView> {
+  late LidarRecordingController lidarRecordingController;
+
+  @override
+  void dispose() {
+    lidarRecordingController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       extendBodyBehindAppBar: true,
       extendBody: true,
-      body: LidarCameraView(),
+      body: LidarCameraView(
+        onRecordingControllerCreated: (controller) {
+          lidarRecordingController = controller;
+          lidarRecordingController.onRecordingCompleted = _onRecordingCompleted;
+        },
+      ),
     );
+  }
+
+  void _onRecordingCompleted(String? path) {
+    print("RECORDING COMPLETED: $path");
   }
 }

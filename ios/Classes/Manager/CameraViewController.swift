@@ -2,6 +2,10 @@ import ARKit
 import RealityKit
 import UIKit
 
+protocol RecordingCompletionDelegate: AnyObject{
+    func onRecordingCompleted(path: String)
+}
+
 class CameraViewController: UIViewController {
     
     private var recordingManager: ARCameraRecordingManager! = nil
@@ -12,7 +16,7 @@ class CameraViewController: UIViewController {
     let maxDuration: TimeInterval = 5.0 // Maximum recording duration in seconds
     var startTime: TimeInterval = 0.0 // To track the start time
     var timer: Timer? // Timer for regular updates
-    
+    weak var recordingCompletionDelegate: RecordingCompletionDelegate?
     init() {
         super.init(nibName: nil, bundle: nil)
     }
@@ -111,7 +115,12 @@ class CameraViewController: UIViewController {
     }
     
     func stopRecording() {
-        recordingManager.stopRecording()
+        recordingManager.stopRecording(completion: {path in
+            guard let path = path else {
+                return
+            }
+            self.recordingCompletionDelegate?.onRecordingCompleted(path: path)
+        })
         timer?.invalidate() // Invalidate the timer
         // Update RecordedTimeView to show not recording state
         recordedTimeView.updateTime(positionalTime: CMTime.zero.positionalTime, isRecording: false)
