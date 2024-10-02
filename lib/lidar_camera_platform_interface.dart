@@ -38,7 +38,7 @@ abstract class LidarCameraPlatform extends PlatformInterface {
   }
 
   /// Deletes the depth conversion data for the given video along with the video from Photos Library.
-  Future<void> deleteRecording({
+  Future<bool> deleteRecording({
     required String assetIdentifier,
     required String recordingUUID,
   }) {

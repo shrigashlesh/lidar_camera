@@ -30,13 +30,14 @@ class MethodChannelLidarCamera extends LidarCameraPlatform {
   }
 
   @override
-  Future<void> deleteRecording({
+  Future<bool> deleteRecording({
     required String assetIdentifier,
     required String recordingUUID,
   }) async {
-    await methodChannel.invokeMethod<bool>('deleteRecording', {
-      'assetIdentifier': assetIdentifier,
-      'recordingUUID': recordingUUID,
-    });
+    return await methodChannel.invokeMethod<bool>('deleteRecording', {
+          'assetIdentifier': assetIdentifier,
+          'recordingUUID': recordingUUID,
+        }) ??
+        false;
   }
 }

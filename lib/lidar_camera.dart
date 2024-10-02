@@ -36,12 +36,12 @@ class LidarDepthPlugin {
     }
   }
 
-  Future<void> deleteRecording({
+  Future<bool> deleteRecording({
     required String recordingUUID,
     required String assetIdentifier,
   }) async {
     try {
-      await LidarCameraPlatform.instance.deleteRecording(
+      return await LidarCameraPlatform.instance.deleteRecording(
         assetIdentifier: assetIdentifier,
         recordingUUID: recordingUUID,
       );

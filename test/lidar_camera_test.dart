@@ -19,11 +19,11 @@ class MockLidarCameraPlatform
   }
 
   @override
-  Future<Map<String, dynamic>?> deleteRecording({
+  Future<bool> deleteRecording({
     required String assetIdentifier,
     required String recordingUUID,
   }) {
-    return Future.value({});
+    return Future.value(true);
   }
 }
 
