@@ -2,9 +2,9 @@ import Flutter
 import UIKit
 
 class FlutterLidarCameraView: NSObject, FlutterPlatformView, RecordingCompletionDelegate {
-    func onRecordingCompleted(path: String) {
+    func onRecordingCompleted(path: String, identifier: String) {
         // Create a dictionary with the recording path
-        let arguments: [String: String] = ["recordingPath": path]
+        let arguments: [String: String] = ["recordingPath": path, "assetIdentifier": identifier]
         sendToFlutter("onRecordingCompleted", arguments: arguments) // Pass the dictionary as arguments
     }
     

@@ -98,7 +98,7 @@ class _PickerViewState extends State<PickerView> {
                   if (file == null) return;
                   final fileName = await file.titleAsync;
                   final cleanedName = fileName.split('.').first;
-                  final LidarDepthReader cam = LidarDepthReader();
+                  final LidarDepthPlugin cam = LidarDepthPlugin();
                   try {
                     final properties = await cam.readDepthConversionData(
                       recordingUUID: cleanedName,
@@ -152,7 +152,43 @@ class _CameraViewState extends State<CameraView> {
     );
   }
 
-  void _onRecordingCompleted(String? path) {
-    print("RECORDING COMPLETED: $path");
+  void _onRecordingCompleted({
+    required String path,
+    required String identifier,
+  }) async {
+    showDialog(
+        context: context,
+        builder: (ctx) {
+          return AlertDialog(
+            title: const Text("Video and data saved successfully."),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                child: const Text("Close"),
+              ),
+              TextButton(
+                onPressed: () async {
+                  final recordingUUID = path.split('/').last.split('.').first;
+                  print(identifier);
+                  final LidarDepthPlugin cam = LidarDepthPlugin();
+                  try {
+                    await cam.deleteRecording(
+                      recordingUUID: recordingUUID,
+                      assetIdentifier: identifier,
+                    );
+                  } catch (e) {
+                    log(e.toString());
+                  }
+                },
+                child: const Text(
+                  "Delete",
+                  style: TextStyle(color: Colors.red),
+                ),
+              )
+            ],
+          );
+        });
   }
 }

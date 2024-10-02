@@ -50,4 +50,24 @@ struct BinaryFileIO {
            let data = try Data(contentsOf: fileURL)
            return (data, fileURL)
        }
+    
+    
+    func deleteFolder(folder folderName: String) throws {
+            let rootFolderURL = try manager.url(
+                for: .documentDirectory,
+                in: .userDomainMask,
+                appropriateFor: nil,
+                create: false
+            )
+            
+            let nestedFolderURL = rootFolderURL.appendingPathComponent(folderName)
+            
+            // Check if folder exists before attempting deletion
+            if manager.fileExists(atPath: nestedFolderURL.relativePath) {
+                // Recursively delete the folder and its contents
+                try manager.removeItem(at: nestedFolderURL)
+            } else {
+                throw NSError(domain: "lidar_plugin", code: 404, userInfo: [NSLocalizedDescriptionKey: "Folder not found"])
+            }
+        }
 }

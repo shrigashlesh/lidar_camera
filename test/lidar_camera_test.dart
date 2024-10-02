@@ -17,6 +17,14 @@ class MockLidarCameraPlatform
   }) {
     return Future.value({});
   }
+
+  @override
+  Future<Map<String, dynamic>?> deleteRecording({
+    required String assetIdentifier,
+    required String recordingUUID,
+  }) {
+    return Future.value({});
+  }
 }
 
 void main() {
@@ -27,7 +35,7 @@ void main() {
   });
 
   test('checkLidarAvailability', () async {
-    LidarDepthReader lidarCameraPlugin = LidarDepthReader();
+    LidarDepthPlugin lidarCameraPlugin = LidarDepthPlugin();
     MockLidarCameraPlatform fakePlatform = MockLidarCameraPlatform();
     LidarCameraPlatform.instance = fakePlatform;
 

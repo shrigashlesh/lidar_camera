@@ -4,7 +4,10 @@ import 'package:flutter/services.dart';
 
 typedef LidarRecordingControllerCreatedCallback = void Function(
     LidarRecordingController controller);
-typedef RecordingResultHandler = void Function(String? path);
+typedef RecordingResultHandler = void Function({
+  required String path,
+  required String identifier,
+});
 typedef StringResultHandler = void Function(String? error);
 
 class LidarCameraView extends StatefulWidget {
@@ -70,7 +73,13 @@ class LidarRecordingController {
           if (onRecordingCompleted != null) {
             if (call.arguments != null) {
               final recordingPath = call.arguments["recordingPath"];
-              onRecordingCompleted!(recordingPath);
+              final identifier = call.arguments["assetIdentifier"];
+              if (recordingPath != null && identifier != null) {
+                onRecordingCompleted!(
+                  path: recordingPath,
+                  identifier: identifier,
+                );
+              }
             }
           }
           break;

@@ -15,6 +15,15 @@ class DepthReaderException extends PlatformException {
   }
 }
 
+class DepthDeletionException extends PlatformException {
+  DepthDeletionException({required super.code});
+
+  @override
+  String toString() {
+    return "Deleting the depth properties failed.";
+  }
+}
+
 @JsonSerializable()
 class DepthConversionProperties {
   DepthConversionProperties({

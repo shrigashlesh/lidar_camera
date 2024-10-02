@@ -7,7 +7,7 @@ import 'lidar_camera_platform_interface.dart';
 export './widget/lidar_camera_view.dart';
 export './utils/json_converter.dart';
 
-class LidarDepthReader {
+class LidarDepthPlugin {
   Future<bool?> checkLidarAvailability() {
     return LidarCameraPlatform.instance.checkLidarAvailability();
   }
@@ -32,6 +32,20 @@ class LidarDepthReader {
       log(e.toString());
       throw DepthReaderException(code: e.code);
     } catch (_) {
+      rethrow;
+    }
+  }
+
+  Future<void> deleteRecording({
+    required String recordingUUID,
+    required String assetIdentifier,
+  }) async {
+    try {
+      await LidarCameraPlatform.instance.deleteRecording(
+        assetIdentifier: assetIdentifier,
+        recordingUUID: recordingUUID,
+      );
+    } catch (e) {
       rethrow;
     }
   }

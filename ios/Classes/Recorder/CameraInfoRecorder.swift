@@ -80,7 +80,7 @@ class CameraInfoRecorder: Recorder {
        
     }
     
-    func finishRecording(completion: ((String?) -> Void)? = nil) {
+    func finishRecording(completion: ((String?, String?) -> Void)? = nil) {
         cameraInfoRecorderQueue.async {
             print("\(self.count) frames of camera info saved.")
             if self.fileIO != nil {

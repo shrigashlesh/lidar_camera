@@ -195,7 +195,7 @@ extension ARCameraRecordingManager: RecordingManager {
         }
         
     }
-    func stopRecording(completion: ((String?) -> Void)? = nil) {
+    func stopRecording(completion: ((String?, String?) -> Void)? = nil) {
         deactivateAudioSession()
         
         sessionQueue.sync { [self] in

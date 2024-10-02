@@ -46,7 +46,7 @@ class DepthRecorder: Recorder {
         
     }
     
-    func finishRecording(completion: ((String?) -> Void)? = nil) {
+    func finishRecording(completion: ((String?, String?)-> Void)? = nil) {
         depthRecorderQueue.async {
             print("\(self.count) frames of depth saved.")
             if self.fileIO != nil {

@@ -12,5 +12,5 @@ protocol Recorder {
     
     func prepareForRecording(recordingId: String)
     func update(_: T, timestamp: CMTime?)
-    func finishRecording(completion: ((String?) -> Void)?)
+    func finishRecording(completion: ((String?, String?) -> Void)?)
 }

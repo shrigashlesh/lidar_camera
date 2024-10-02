@@ -119,7 +119,7 @@ class RGBRecorder: NSObject, Recorder {
         }
     }
     
-    func finishRecording(completion: ((String?) -> Void)? = nil) {
+    func finishRecording(completion: ((String?, String?) -> Void)? = nil) {
         
         rgbRecorderQueue.async {
             
@@ -143,12 +143,12 @@ class RGBRecorder: NSObject, Recorder {
         }
     }
     
-    func saveVideoToGallery(videoURL: URL, completion: ((String?) -> Void)?) {
+    func saveVideoToGallery(videoURL: URL, completion: ((String?, String?) -> Void)?) {
         // Request authorization if not already done
         PHPhotoLibrary.requestAuthorization { status in
             guard status == .authorized else {
                 print("Permission not granted to access photo library")
-                completion?(nil) // Return nil if permission is not granted
+                completion?(nil, nil) // Return nil if permission is not granted
                 return
             }
 
@@ -159,11 +159,11 @@ class RGBRecorder: NSObject, Recorder {
                 let albumName = "Fishtechy"
                 var albumChangeRequest: PHAssetCollectionChangeRequest?
                 var albumPlaceholder: PHObjectPlaceholder?
-                
+
                 let fetchOptions = PHFetchOptions()
                 fetchOptions.predicate = NSPredicate(format: "title = %@", albumName)
                 let albumFetch = PHAssetCollection.fetchAssetCollections(with: .album, subtype: .any, options: fetchOptions)
-                
+
                 if let existingAlbum = albumFetch.firstObject {
                     // Album exists, fetch it
                     albumChangeRequest = PHAssetCollectionChangeRequest(for: existingAlbum)
@@ -172,7 +172,7 @@ class RGBRecorder: NSObject, Recorder {
                     albumChangeRequest = PHAssetCollectionChangeRequest.creationRequestForAssetCollection(withTitle: albumName)
                     albumPlaceholder = albumChangeRequest?.placeholderForCreatedAssetCollection
                 }
-                
+
                 // Create a new asset creation request for the video
                 let creationRequest = PHAssetCreationRequest.forAsset()
                 videoPlaceholder = creationRequest.placeholderForCreatedAsset // Capture the placeholder
@@ -186,35 +186,37 @@ class RGBRecorder: NSObject, Recorder {
                         albumChangeRequest = PHAssetCollectionChangeRequest(for: newAlbum)
                     }
                 }
-                
+
                 // Add the video to the album
                 if let albumChangeRequest = albumChangeRequest, let videoPlaceholder = videoPlaceholder {
                     let fastEnumeration = NSArray(array: [videoPlaceholder] as [PHObjectPlaceholder])
                     albumChangeRequest.addAssets(fastEnumeration)
                 }
-                
+
             }) { success, error in
                 if success {
                     // Fetch the saved video by its placeholder's local identifier
                     guard let videoPlaceholder = videoPlaceholder else {
-                        completion?(nil) // Return nil if placeholder not found
+                        completion?(nil, nil) // Return nil if placeholder not found
                         return
                     }
-                    
+
+                    let localIdentifier = videoPlaceholder.localIdentifier
+
                     let fetchResult = PHAsset.fetchAssets(withLocalIdentifiers: [videoPlaceholder.localIdentifier], options: nil)
                     if let asset = fetchResult.firstObject {
                         // Get the file URL of the saved asset
                         self.getAssetFileURL(for: asset) { fileURL in
-                            completion?(fileURL?.path) // Return the file path if available
+                            completion?(fileURL?.path, localIdentifier) // Return both file path and local identifier
                         }
                     } else {
-                        completion?(nil)
+                        completion?(nil, localIdentifier)
                     }
                 } else {
                     if let error = error {
                         print("Error saving video: \(error.localizedDescription)")
                     }
-                    completion?(nil) // Return nil on failure
+                    completion?(nil, nil) // Return nil on failure
                 }
             }
         }

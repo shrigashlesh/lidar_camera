@@ -3,7 +3,7 @@ import RealityKit
 import UIKit
 
 protocol RecordingCompletionDelegate: AnyObject{
-    func onRecordingCompleted(path: String)
+    func onRecordingCompleted(path: String, identifier: String)
 }
 
 class CameraViewController: UIViewController {
@@ -115,11 +115,11 @@ class CameraViewController: UIViewController {
     }
     
     func stopRecording() {
-        recordingManager.stopRecording(completion: {path in
-            guard let path = path else {
+        recordingManager.stopRecording(completion: {path, identifier in
+            guard let path = path, let identifier = identifier else {
                 return
             }
-            self.recordingCompletionDelegate?.onRecordingCompleted(path: path)
+            self.recordingCompletionDelegate?.onRecordingCompleted(path: path, identifier: identifier)
         })
         timer?.invalidate() // Invalidate the timer
         // Update RecordedTimeView to show not recording state

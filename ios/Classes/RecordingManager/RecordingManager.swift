@@ -13,5 +13,5 @@ protocol RecordingManager {
     func getSession() -> NSObject
     
     func startRecording()
-    func stopRecording(completion: ((String?) -> Void)?)
+    func stopRecording(completion: ((String?, String?) -> Void)?)
 }

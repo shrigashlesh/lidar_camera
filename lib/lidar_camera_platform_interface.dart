@@ -36,4 +36,12 @@ abstract class LidarCameraPlatform extends PlatformInterface {
     throw UnimplementedError(
         'readDepthConversionData() has not been implemented.');
   }
+
+  /// Deletes the depth conversion data for the given video along with the video from Photos Library.
+  Future<void> deleteRecording({
+    required String assetIdentifier,
+    required String recordingUUID,
+  }) {
+    throw UnimplementedError('deleteRecording() has not been implemented.');
+  }
 }
