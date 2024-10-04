@@ -57,6 +57,7 @@ class CameraInfoRecorder: Recorder {
     func update(_ cameraInfo: CameraInfo, timestamp: CMTime? = nil) {
         cameraInfoRecorderQueue.async {
             print("Saving camera info \(self.count) ...")
+            cameraInfo
             self.writeCameraInfoToFile(cameraInfo: cameraInfo)
             self.count += 1
         }

@@ -46,7 +46,7 @@ class Matrix4Converter implements JsonConverter<Matrix4, List<List<num>>> {
         .map((e) => e.toDouble())
         .toList();
 
-    return Matrix4.fromList(flatList)..transpose();
+    return Matrix4.fromList(flatList);
   }
 
   @override

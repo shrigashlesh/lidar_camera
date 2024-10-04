@@ -171,7 +171,7 @@ class _CameraViewState extends State<CameraView> {
               TextButton(
                 onPressed: () async {
                   final recordingUUID = path.split('/').last.split('.').first;
-                  print(identifier);
+                  log(identifier);
                   final LidarDepthPlugin cam = LidarDepthPlugin();
                   try {
                     await cam.deleteRecording(
