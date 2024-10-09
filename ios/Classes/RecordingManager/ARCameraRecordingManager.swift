@@ -296,6 +296,11 @@ extension ARCameraRecordingManager: AVCaptureAudioDataOutputSampleBufferDelegate
     }
     
     func deactivateAudioSession() {
-        audioCaptureSession?.stopRunning()
+        guard let audioCaptureSession = audioCaptureSession else {
+            return
+        }
+        if(audioCaptureSession.isRunning){
+            audioCaptureSession.stopRunning()
+        }
     }
 }
