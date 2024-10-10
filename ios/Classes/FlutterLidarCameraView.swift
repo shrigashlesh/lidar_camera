@@ -64,8 +64,17 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView, RecordingCompletion
     }
 
     func onDispose(_ result: FlutterResult) {
-        // Ensure viewController is removed and cleaned up
+        // Remove the method call handler
         channel.setMethodCallHandler(nil)
+
+        // Cleanup viewController if it exists
+        if let vc = viewController {
+            vc.willMove(toParent: nil)
+            vc.view.removeFromSuperview()
+            vc.removeFromParent()
+            viewController = nil
+        }
+
         result(nil)
     }
     

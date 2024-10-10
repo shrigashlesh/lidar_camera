@@ -156,7 +156,7 @@ class RGBRecorder: NSObject, Recorder {
             var videoPlaceholder: PHObjectPlaceholder? = nil // Declare videoPlaceholder outside
             PHPhotoLibrary.shared().performChanges({
                 // Check if the album already exists
-                let albumName = "Fishtechy"
+                let albumName = "Fishtechy 3D Videos"
                 var albumChangeRequest: PHAssetCollectionChangeRequest?
                 var albumPlaceholder: PHObjectPlaceholder?
 

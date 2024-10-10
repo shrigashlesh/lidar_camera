@@ -9,6 +9,11 @@ class MockLidarCameraPlatform
     implements LidarCameraPlatform {
   @override
   Future<bool?> checkLidarAvailability() => Future.value(true);
+  @override
+  Future<bool?> checkRecordingDataAvailability({
+    required String recordingUUID,
+  }) =>
+      Future.value(true);
 
   @override
   Future<Map<String, dynamic>?> readDepthConversionData({

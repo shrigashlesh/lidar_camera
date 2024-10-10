@@ -9,7 +9,18 @@ import Foundation
 
 struct BinaryFileIO {
     var manager = FileManager.default
+    func folderExists(folder folderName: String) throws -> Bool {
+          let rootFolderURL = try manager.url(
+              for: .documentDirectory,
+              in: .userDomainMask,
+              appropriateFor: nil,
+              create: false
+          )
 
+          let nestedFolderURL = rootFolderURL.appendingPathComponent(folderName)
+          return manager.fileExists(atPath: nestedFolderURL.relativePath)
+      }
+    
     func write(
         _ data: Data,
         folder folderName: String,

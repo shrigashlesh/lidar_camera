@@ -23,9 +23,18 @@ abstract class LidarCameraPlatform extends PlatformInterface {
     _instance = instance;
   }
 
+  /// Check for lidar availability
   Future<bool?> checkLidarAvailability() {
     throw UnimplementedError(
         'checkLidarAvailability() has not been implemented.');
+  }
+
+  /// Check for recording data availability
+  Future<bool?> checkRecordingDataAvailability({
+    required String recordingUUID,
+  }) {
+    throw UnimplementedError(
+        'checkRecordingDataAvailability() has not been implemented.');
   }
 
   /// Extracts depth conversion data for the given video (from its unique filename) at the specified time.

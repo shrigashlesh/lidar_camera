@@ -16,7 +16,7 @@ public class LidarCameraPlugin: NSObject, FlutterPlugin {
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
         case "checkLidarAvailability":
-            result(true)
+            checkLidarAvailability(result: result)
         case "readDepthConversionData":
             guard let arguments = call.arguments as? [String: Any],
                   let videoFileName = arguments["recordingUUID"] as? String,
@@ -33,10 +33,37 @@ public class LidarCameraPlugin: NSObject, FlutterPlugin {
                 return
             }
             deleteRecording(recordingUUID: recordingUUID, assetIdentifier: assetIdentifier, result: result)
+        case "checkRecordingDataAvailability":
+            guard let arguments = call.arguments as? [String: Any],
+                  let recordingUUID = arguments["recordingUUID"] as? String else {
+                result(FlutterError(code: "INVALID_ARGUMENT", message: "Invalid argument in checkRecordingDataAvailability call", details: nil))
+                return
+            }
+            checkRecordingDataAvailability(recordingUUID: recordingUUID, result: result)
         default:
             result(FlutterMethodNotImplemented)
         }
     }
+    
+    private func checkLidarAvailability(result: @escaping FlutterResult) {
+        if let device = AVCaptureDevice.default(.builtInLiDARDepthCamera, for: .video, position: .back) {
+            result(device.isConnected)
+        } else {
+            result(false) 
+        }
+    }
+    
+    private func checkRecordingDataAvailability(recordingUUID: String, result: @escaping FlutterResult) {
+        do {
+            let fileIo = BinaryFileIO()
+            // Check if the folder for the recording UUID exists
+            let folderExists = try fileIo.folderExists(folder: recordingUUID)
+            result(folderExists)
+        } catch {
+            result(FlutterError(code: "CHECK_ERROR", message: "Failed to check recording availability: \(error.localizedDescription)", details: nil))
+        }
+    }
+
     
     private func readDepthData(videoFileName: String, frameNumber: Int, result: @escaping FlutterResult) {
         do {
@@ -93,7 +120,6 @@ public class LidarCameraPlugin: NSObject, FlutterPlugin {
                     let fetchOptions = PHFetchOptions()
                     fetchOptions.predicate = NSPredicate(format: "localIdentifier == %@", assetIdentifier)
                     let asset = PHAsset.fetchAssets(with: fetchOptions).firstObject
-                    print("HERE: \(asset)")
                     if let asset = asset {
                         PHAssetChangeRequest.deleteAssets([asset] as NSArray)
                     }

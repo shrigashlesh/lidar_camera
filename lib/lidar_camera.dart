@@ -12,6 +12,14 @@ class LidarDepthPlugin {
     return LidarCameraPlatform.instance.checkLidarAvailability();
   }
 
+  Future<bool?> checkRecordingDataAvailability({
+    required String recordingUUID,
+  }) {
+    return LidarCameraPlatform.instance.checkRecordingDataAvailability(
+      recordingUUID: recordingUUID,
+    );
+  }
+
   Future<DepthConversionProperties> readDepthConversionData({
     required String recordingUUID,
     required int frameNumber,

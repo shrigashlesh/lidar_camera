@@ -210,8 +210,6 @@ extension ARCameraRecordingManager: RecordingManager {
             
         }
     }
-
-  
     
 }
 
