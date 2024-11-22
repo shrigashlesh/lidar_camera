@@ -5,7 +5,7 @@ import 'dart:typed_data';
 import 'package:json_annotation/json_annotation.dart';
 import 'package:vector_math/vector_math_64.dart';
 
-class Matrix3Converter implements JsonConverter<Matrix3, List<List<num>>> {
+class Matrix3Converter implements JsonConverter<Matrix3, List<dynamic>> {
   const Matrix3Converter();
 
   @override
@@ -21,7 +21,7 @@ class Matrix3Converter implements JsonConverter<Matrix3, List<List<num>>> {
   }
 
   @override
-  List<List<num>> toJson(Matrix3 matrix) {
+  List<dynamic> toJson(Matrix3 matrix) {
     final list = List.filled(9, 0.0);
     matrix.copyIntoArray(list);
 
@@ -34,7 +34,7 @@ class Matrix3Converter implements JsonConverter<Matrix3, List<List<num>>> {
   }
 }
 
-class Matrix4Converter implements JsonConverter<Matrix4, List<List<num>>> {
+class Matrix4Converter implements JsonConverter<Matrix4, List<dynamic>> {
   const Matrix4Converter();
 
   @override
@@ -50,7 +50,7 @@ class Matrix4Converter implements JsonConverter<Matrix4, List<List<num>>> {
   }
 
   @override
-  List<List<num>> toJson(Matrix4 matrix) {
+  List<dynamic> toJson(Matrix4 matrix) {
     final list = List.filled(16, 0.0);
     matrix.copyIntoArray(list);
 
