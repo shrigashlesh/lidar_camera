@@ -1,47 +1,14 @@
-import 'dart:developer';
+import 'dart:io';
 
-import 'package:flutter/services.dart';
-import 'package:lidar_camera/model/depth_conversion_properties.dart';
+import 'package:lidar_camera/error/lidar_data_unavailable_exception.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'lidar_camera_platform_interface.dart';
 export './widget/lidar_camera_view.dart';
-export './utils/json_converter.dart';
 
 class LidarDepthPlugin {
   Future<bool?> checkLidarAvailability() {
     return LidarCameraPlatform.instance.checkLidarAvailability();
-  }
-
-  Future<bool?> checkRecordingDataAvailability({
-    required String recordingUUID,
-  }) {
-    return LidarCameraPlatform.instance.checkRecordingDataAvailability(
-      recordingUUID: recordingUUID,
-    );
-  }
-
-  Future<DepthConversionProperties> readDepthConversionData({
-    required String recordingUUID,
-    required int frameNumber,
-  }) async {
-    try {
-      final conversionData =
-          await LidarCameraPlatform.instance.readDepthConversionData(
-        recordingUUID: recordingUUID,
-        frameNumber: frameNumber,
-      );
-      if (conversionData == null) {
-        throw DepthReaderException(code: "READ_ERROR");
-      }
-      final properties = DepthConversionProperties.fromJson(conversionData);
-
-      return properties;
-    } on PlatformException catch (e) {
-      log(e.toString());
-      throw DepthReaderException(code: e.code);
-    } catch (_) {
-      rethrow;
-    }
   }
 
   Future<bool> deleteRecording({
@@ -53,7 +20,30 @@ class LidarDepthPlugin {
         assetIdentifier: assetIdentifier,
         recordingUUID: recordingUUID,
       );
-    } catch (e) {
+    } catch (_) {
+      rethrow;
+    }
+  }
+
+  Future<List<FileSystemEntity>> fetchRecordingFiles({
+    required String recordingUUID,
+  }) async {
+    try {
+      // Get the application's document directory
+      final appDirectory = await getApplicationDocumentsDirectory();
+
+      // Define the recording directory path using the UUID
+      final recordingDirectory =
+          Directory('${appDirectory.path}/$recordingUUID');
+
+      // Check if the directory exists and return the files or throw error accordingly
+      if (await recordingDirectory.exists()) {
+        final files = recordingDirectory.listSync();
+        return files;
+      } else {
+        throw LidarDataUnavailableException();
+      }
+    } catch (_) {
       rethrow;
     }
   }

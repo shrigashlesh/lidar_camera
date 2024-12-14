@@ -29,26 +29,16 @@ abstract class LidarCameraPlatform extends PlatformInterface {
         'checkLidarAvailability() has not been implemented.');
   }
 
-  /// Check for recording data availability
-  Future<bool?> checkRecordingDataAvailability({
-    required String recordingUUID,
-  }) {
-    throw UnimplementedError(
-        'checkRecordingDataAvailability() has not been implemented.');
-  }
-
-  /// Extracts depth conversion data for the given video (from its unique filename) at the specified time.
-  Future<Map<String, dynamic>?> readDepthConversionData({
-    required String recordingUUID,
-    required int frameNumber,
-  }) {
-    throw UnimplementedError(
-        'readDepthConversionData() has not been implemented.');
-  }
-
   /// Deletes the depth conversion data for the given video along with the video from Photos Library.
   Future<bool> deleteRecording({
     required String assetIdentifier,
+    required String recordingUUID,
+  }) {
+    throw UnimplementedError('deleteRecording() has not been implemented.');
+  }
+
+  /// Returns recording data (depth, confidence, intrinsics) for the given video.
+  Future<List<String>?> listRecordingFiles({
     required String recordingUUID,
   }) {
     throw UnimplementedError('deleteRecording() has not been implemented.');

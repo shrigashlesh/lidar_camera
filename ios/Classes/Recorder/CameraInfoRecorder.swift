@@ -5,26 +5,34 @@
 //  Created by Shrig Solutions on 26/09/2024.
 //
 
+
 import CoreMedia
 import Foundation
 import simd
 
-class CameraInfo {
+class CameraInfo: Encodable {
     
+    private var timestamp: Int64
     private var intrinsics: simd_float3x3
     private var transform: simd_float4x4
+    private var eulerAngles: simd_float3
+    private var exposureDuration: Int64
     
-    internal init(intrinsics: simd_float3x3, transform: simd_float4x4) {
+    internal init(timestamp: TimeInterval, intrinsics: simd_float3x3, transform: simd_float4x4, eulerAngles: simd_float3, exposureDuration: TimeInterval) {
+        self.timestamp = Int64(timestamp * 1_000_000_000.0)
         self.intrinsics = intrinsics
         self.transform = transform
+        self.eulerAngles = eulerAngles
+        self.exposureDuration = Int64(exposureDuration * 1_000_000_000.0)
     }
     
-    func getIntrinsicData() -> Data {
-       return serializeMatrixToData(intrinsics)
-    }
-    
-    func getTranformData() -> Data {
-       return serializeMatrixToData(transform)
+    func getJsonEncoding() -> String {
+        let encoder = JSONEncoder()
+//        encoder.outputFormatting = .prettyPrinted
+        encoder.keyEncodingStrategy = .convertToSnakeCase
+        
+        let data = try! encoder.encode(self)
+        return String(data: data, encoding: .utf8)!
     }
 }
 
@@ -34,22 +42,29 @@ class CameraInfoRecorder: Recorder {
     
     private let cameraInfoRecorderQueue = DispatchQueue(label: "camera info recorder queue")
     
-    private var count: Int32 = 0
-    private var fileIO: BinaryFileIO? = nil
-    private var recordingId: String? = nil
+    private var fileHandle: FileHandle? = nil
+    private var fileUrl: URL? = nil
     
-    func prepareForRecording(recordingId: String) {
+    private var count: Int32 = 0
+    
+    deinit{
+        print("CameraInfoRecorder deinitialized")
+    }
+    func prepareForRecording(dirPath: String, recordingId: String, fileExtension: String = "jsonl") {
         
         cameraInfoRecorderQueue.async {
             
             self.count = 0
-            self.recordingId = recordingId
-            self.fileIO = BinaryFileIO()
-            if self.fileIO == nil {
-                print("Unable to create file writer.")
+            
+            let filePath = (dirPath as NSString).appendingPathComponent((recordingId as NSString).appendingPathExtension(fileExtension)!)
+            self.fileUrl = URL(fileURLWithPath: filePath)
+            FileManager.default.createFile(atPath: self.fileUrl!.path, contents: nil, attributes: nil)
+            
+            self.fileHandle = FileHandle(forUpdatingAtPath: self.fileUrl!.path)
+            if self.fileHandle == nil {
+                print("Unable to create file handle.")
                 return
             }
-            
         }
         
     }
@@ -57,36 +72,21 @@ class CameraInfoRecorder: Recorder {
     func update(_ cameraInfo: CameraInfo, timestamp: CMTime? = nil) {
         cameraInfoRecorderQueue.async {
             print("Saving camera info \(self.count) ...")
-            cameraInfo
-            self.writeCameraInfoToFile(cameraInfo: cameraInfo)
+            
+            self.fileHandle?.write((cameraInfo.getJsonEncoding() + "\n").data(using: .utf8)!)
+            
             self.count += 1
         }
     }
     
-    private func writeCameraInfoToFile(cameraInfo: CameraInfo) {
-        guard let recordingId = recordingId else {
-            return
-        }
-        
-        let cameraIntrinsicData = cameraInfo.getIntrinsicData()
-        let cameraTransformData = cameraInfo.getTranformData()
-        do {
-            let intrinicFileName = Helper.getIntrinsicFileName(frameNumber: Int(self.count))
-            let transformFileName = Helper.getTransformFileName(frameNumber: Int(self.count))
-            try self.fileIO?.write(cameraIntrinsicData, folder: recordingId, toDocumentNamed: intrinicFileName)
-            try fileIO?.write(cameraTransformData, folder: recordingId, toDocumentNamed: transformFileName)
-        } catch {
-            print("Couldn't save full camera info \(self.count)")
-        }
-       
-    }
-    
     func finishRecording(completion: ((String?, String?) -> Void)? = nil) {
         cameraInfoRecorderQueue.async {
-            print("\(self.count) frames of camera info saved.")
-            if self.fileIO != nil {
-                self.fileIO = nil
+            if self.fileHandle != nil {
+                self.fileHandle!.closeFile()
+                self.fileHandle = nil
             }
+            
+            print("\(self.count) frames of camera info saved.")
         }
     }
 }

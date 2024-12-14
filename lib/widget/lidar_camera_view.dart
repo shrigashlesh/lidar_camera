@@ -72,8 +72,8 @@ class LidarRecordingController {
         case 'onRecordingCompleted':
           if (onRecordingCompleted != null) {
             if (call.arguments != null) {
-              final recordingPath = call.arguments["recordingPath"];
-              final identifier = call.arguments["assetIdentifier"];
+              final recordingPath = call.arguments["recordingPath"] as String?;
+              final identifier = call.arguments["assetIdentifier"] as String?;
               if (recordingPath != null && identifier != null) {
                 onRecordingCompleted!(
                   path: recordingPath,

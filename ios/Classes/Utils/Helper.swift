@@ -25,7 +25,6 @@ struct Helper {
     
     static func getRecordingId() -> String {
         let dateFormatter = DateFormatter()
-        //        dateFormatter.dateFormat = "yyyy-MM-dd_HH-mm-ssZ"
         dateFormatter.dateFormat = "yyyyMMdd'T'HHmmssZ"
         let dateString = dateFormatter.string(from: Date())
         
@@ -34,23 +33,21 @@ struct Helper {
         return recordingId
     }
     
-    private static func frameSuffix(frameNumber: Int) -> String {
-        let frameNumberSuffix = String(format: "%04d", frameNumber);
-        return frameNumberSuffix
-    }
-    
-    static func getDepthFileName(frameNumber: Int) -> String {
-        let frameNumberSuffix = frameSuffix(frameNumber:frameNumber)
-        return "depth_\(frameNumberSuffix)"
-    }
-    
-    static func getIntrinsicFileName(frameNumber: Int) -> String {
-        let frameNumberSuffix = frameSuffix(frameNumber:frameNumber)
-        return "intrinsic_\(frameNumberSuffix)"
-    }
-    
-    static func getTransformFileName(frameNumber: Int) -> String {
-        let frameNumberSuffix = frameSuffix(frameNumber:frameNumber)
-        return "transform_\(frameNumberSuffix)"
+    static func getRecordingDataDirectoryPath(recordingId: String) -> String {
+        let documentsDirectory = NSSearchPathForDirectoriesInDomains(.documentDirectory, .userDomainMask, true)[0]
+        
+        // create new directory for new recording
+        let documentsDirectoryUrl = URL(string: documentsDirectory)!
+        let recordingDataDirectoryUrl = documentsDirectoryUrl.appendingPathComponent(recordingId)
+        if !FileManager.default.fileExists(atPath: recordingDataDirectoryUrl.absoluteString) {
+            do {
+                try FileManager.default.createDirectory(atPath: recordingDataDirectoryUrl.absoluteString, withIntermediateDirectories: true, attributes: nil)
+            } catch {
+                print(error.localizedDescription);
+            }
+        }
+        
+        let recordingDataDirectoryPath = recordingDataDirectoryUrl.absoluteString
+        return recordingDataDirectoryPath
     }
 }

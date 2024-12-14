@@ -8,7 +8,7 @@ protocol RecordingCompletionDelegate: AnyObject{
 
 class CameraViewController: UIViewController {
     
-    private var recordingManager: ARCameraRecordingManager! = nil
+    private var recordingManager: ARCameraRecordingManager?
     private var recordButton: RecordButton!
     private var recordedTimeView: RecordedTimeView! // Add RecordedTimeView
     
@@ -17,12 +17,23 @@ class CameraViewController: UIViewController {
     var startTime: TimeInterval = 0.0 // To track the start time
     var timer: Timer? // Timer for regular updates
     weak var recordingCompletionDelegate: RecordingCompletionDelegate?
+    
+    private var arView: ARView?
+
     init() {
         super.init(nibName: nil, bundle: nil)
     }
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+    
+    deinit {
+        timer?.invalidate()
+        recordingManager = nil
+        arView?.scene.anchors.removeAll()
+        arView = nil
+        print("CameraViewController deinitialized")
     }
     
     override func viewDidLoad() {
@@ -37,14 +48,13 @@ class CameraViewController: UIViewController {
         super.viewWillAppear(animated)
         UIApplication.shared.isIdleTimerDisabled = true
     }
-    
     private func initRecordingManagerAndPerformRecordingModeRelatedSetup() {
         if #available(iOS 14.0, *) {
             recordingManager = ARCameraRecordingManager()
-            let session = recordingManager.getSession() as! ARSession
-            let arView = ARView()
-            arView.session = session
-            setupPreviewView(previewView: arView)
+            let session = recordingManager!.getSession() as! ARSession
+            arView = ARView()
+            arView?.session = session
+            setupPreviewView(previewView: arView!)
         } else {
             print("AR camera only available for iOS 14.0 or newer.")
         }
@@ -81,6 +91,9 @@ class CameraViewController: UIViewController {
     }
     
     @objc func recordButtonTapped() {
+        guard let recordingManager = recordingManager else{
+            return
+        }
         if recordingManager.isRecording {
             stopRecording()
         } else {
@@ -105,7 +118,9 @@ class CameraViewController: UIViewController {
         ])
     }
     
-    func startRecording() {
+    func startRecording() { guard let recordingManager = recordingManager else{
+        return
+    }
         progress = 0
         startTime = Date().timeIntervalSince1970 // Record the start time
         recordingManager.startRecording()
@@ -115,15 +130,17 @@ class CameraViewController: UIViewController {
     }
     
     func stopRecording() {
-        recordingManager.stopRecording(completion: {path, identifier in
-            guard let path = path, let identifier = identifier else {
+        guard let recordingManager = recordingManager else{
+        return
+    }
+        recordingManager.stopRecording(completion: { [weak self] path, identifier in
+            guard let self = self, let path = path, let identifier = identifier else {
                 return
             }
             self.recordingCompletionDelegate?.onRecordingCompleted(path: path, identifier: identifier)
         })
         timer?.invalidate() // Invalidate the timer
-        // Update RecordedTimeView to show not recording state
-        recordedTimeView.updateTime(positionalTime: CMTime.zero.positionalTime, isRecording: false)
+        recordedTimeView.updateTime(positionalTime: CMTime.zero.positionalTime, isRecording: false) // Update view
     }
     
     @objc private func updateProgress() {

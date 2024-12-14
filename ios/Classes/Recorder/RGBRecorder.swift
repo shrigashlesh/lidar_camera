@@ -28,17 +28,20 @@ class RGBRecorder: NSObject, Recorder {
         self.location = location
     }
     
-    func prepareForRecording(recordingId: String) {
+    deinit{
+        print("RGBRecorder deinitialized")
+    }
+    
+    func prepareForRecording(dirPath: String, recordingId: String, fileExtension: String = "mp4") {
         rgbRecorderQueue.async {
             
             self.count = 0
-            let outputFileUrl = FileManager.default.temporaryDirectory.appendingPathComponent("\(recordingId).mp4")
-            
+            let outputFilePath = (dirPath as NSString).appendingPathComponent((recordingId as NSString).appendingPathExtension(fileExtension)!)
+            let outputFileUrl = URL(fileURLWithPath: outputFilePath)
             guard let assetWriter = try? AVAssetWriter(url: outputFileUrl, fileType: .mp4) else {
                 print("Failed to create AVAssetWriter.")
                 return
             }
-            
             
             let assetWriterVideoInput = AVAssetWriterInput(mediaType: .video, outputSettings: self.videoSettings)
             
@@ -178,7 +181,7 @@ class RGBRecorder: NSObject, Recorder {
                 videoPlaceholder = creationRequest.placeholderForCreatedAsset // Capture the placeholder
                 creationRequest.addResource(with: .video, fileURL: videoURL, options: nil)
                 creationRequest.creationDate = Date()
-
+                creationRequest.location = self.location
                 // If we just created the album, get the created collection and add the video to it
                 if let albumPlaceholder = albumPlaceholder {
                     let albumFetchResult = PHAssetCollection.fetchAssetCollections(withLocalIdentifiers: [albumPlaceholder.localIdentifier], options: nil)

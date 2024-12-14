@@ -17,30 +17,6 @@ class MethodChannelLidarCamera extends LidarCameraPlatform {
   }
 
   @override
-  Future<bool?> checkRecordingDataAvailability({
-    required String recordingUUID,
-  }) async {
-    final isAvailable = await methodChannel
-        .invokeMethod<bool>('checkRecordingDataAvailability', {
-      'recordingUUID': recordingUUID,
-    });
-    return isAvailable;
-  }
-
-  @override
-  Future<Map<String, dynamic>?> readDepthConversionData({
-    required String recordingUUID,
-    required int frameNumber,
-  }) async {
-    final result = await methodChannel
-        .invokeMapMethod<String, dynamic>('readDepthConversionData', {
-      'recordingUUID': recordingUUID,
-      'frameNumber': frameNumber,
-    });
-    return result;
-  }
-
-  @override
   Future<bool> deleteRecording({
     required String assetIdentifier,
     required String recordingUUID,

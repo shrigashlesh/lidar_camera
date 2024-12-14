@@ -1,5 +1,4 @@
 import 'dart:developer';
-
 import 'package:flutter/material.dart';
 import 'package:lidar_camera/lidar_camera.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
@@ -97,14 +96,13 @@ class _PickerViewState extends State<PickerView> {
                   final file = result?.firstOrNull;
                   if (file == null) return;
                   final fileName = await file.titleAsync;
-                  final cleanedName = fileName.split('.').first;
+                  final recordingUUID = fileName.split('.').first;
                   final LidarDepthPlugin cam = LidarDepthPlugin();
                   try {
-                    final properties = await cam.readDepthConversionData(
-                      recordingUUID: cleanedName,
-                      frameNumber: 12,
+                    final isDataAvailable = await cam.fetchRecordingFiles(
+                      recordingUUID: recordingUUID,
                     );
-                    log(properties.toString());
+                    log("DATA FOR $recordingUUID present : $isDataAvailable");
                   } catch (e) {
                     log(e.toString());
                   }

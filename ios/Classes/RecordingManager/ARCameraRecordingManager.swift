@@ -18,9 +18,11 @@ class ARCameraRecordingManager: NSObject {
     // rgbRecorder will be initialized in configureSession
     private var rgbRecorder: RGBRecorder! = nil
     private let cameraInfoRecorder = CameraInfoRecorder()
+    private let confidenceMapRecorder = ConfidenceMapRecorder()
     
     private var numFrames: Int = 0
-    var recordingId: String?
+    private var dirUrl: URL?
+    private var recordingId: String?
     var isRecording: Bool = false
     
     private let locationManager = CLLocationManager()
@@ -48,6 +50,9 @@ class ARCameraRecordingManager: NSObject {
         audioRecorderQueue.sync {
             deactivateAudioSession()
         }
+        
+        print("ARCameraRecordingManager deinitialized")
+
     }
     
     
@@ -185,9 +190,14 @@ extension ARCameraRecordingManager: RecordingManager {
             guard let recordingId = recordingId else {
                 return
             }
-            depthRecorder.prepareForRecording(recordingId: recordingId)
-            rgbRecorder.prepareForRecording(recordingId: recordingId)
-            cameraInfoRecorder.prepareForRecording(recordingId: recordingId)
+            dirUrl = URL(fileURLWithPath: Helper.getRecordingDataDirectoryPath(recordingId: recordingId))
+            guard let dirUrl = dirUrl else {
+                return
+            }
+            depthRecorder.prepareForRecording(dirPath: dirUrl.path, recordingId: recordingId)
+            confidenceMapRecorder.prepareForRecording(dirPath: dirUrl.path, recordingId: recordingId)
+            rgbRecorder.prepareForRecording(dirPath: dirUrl.path, recordingId: recordingId)
+            cameraInfoRecorder.prepareForRecording(dirPath: dirUrl.path, recordingId: recordingId)
             
             isRecording = true
             
@@ -205,9 +215,9 @@ extension ARCameraRecordingManager: RecordingManager {
             
             // Finish the recordings
             depthRecorder.finishRecording()
+            confidenceMapRecorder.finishRecording()
             rgbRecorder.finishRecording(completion: completion)
             cameraInfoRecorder.finishRecording()
-            
         }
     }
     
@@ -231,18 +241,26 @@ extension ARCameraRecordingManager: ARSessionDelegate {
         let colorImage: CVPixelBuffer = frame.capturedImage
         
         let timestamp: CMTime = CMTime(seconds: frame.timestamp, preferredTimescale: 1_000_000_000)
-        
+        guard let confidenceMap = depthData.confidenceMap else {
+            print("Failed to get confidenceMap.")
+            return
+        }
         print("**** @Controller: depth \(numFrames) ****")
         depthRecorder.update(depthMap)
+        
+        print("**** @Controller: confidence \(numFrames) ****")
+        confidenceMapRecorder.update(confidenceMap)
         
         print("**** @Controller: color \(numFrames) ****")
         rgbRecorder.update(colorImage, timestamp: timestamp)
         
         print("**** @Controller: camera info \(numFrames) ****")
-        let currentCameraInfo = CameraInfo(
-            intrinsics: frame.camera.intrinsics,
-            transform: frame.camera.transform
-        )
+        
+        let currentCameraInfo = CameraInfo(timestamp: frame.timestamp,
+                                           intrinsics: frame.camera.intrinsics,
+                                           transform: frame.camera.transform,
+                                           eulerAngles: frame.camera.eulerAngles,
+                                           exposureDuration: frame.camera.exposureDuration)
         cameraInfoRecorder.update(currentCameraInfo)
         
         numFrames += 1
