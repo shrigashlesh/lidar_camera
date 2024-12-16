@@ -68,6 +68,7 @@ class PickerView extends StatefulWidget {
 }
 
 class _PickerViewState extends State<PickerView> {
+  List<String> selectedFiles = [];
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -80,6 +81,15 @@ class _PickerViewState extends State<PickerView> {
             mainAxisAlignment: MainAxisAlignment.center,
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              ...List.generate(selectedFiles.length, (index) {
+                return Card(
+                  child: ListTile(
+                    title: Text(
+                      selectedFiles[index],
+                    ),
+                  ),
+                );
+              }),
               ElevatedButton(
                 onPressed: () async {
                   final List<AssetEntity>? result =
@@ -99,10 +109,13 @@ class _PickerViewState extends State<PickerView> {
                   final recordingUUID = fileName.split('.').first;
                   final LidarDepthPlugin cam = LidarDepthPlugin();
                   try {
-                    final isDataAvailable = await cam.fetchRecordingFiles(
+                    final files = await cam.fetchRecordingFiles(
                       recordingUUID: recordingUUID,
                     );
-                    log("DATA FOR $recordingUUID present : $isDataAvailable");
+                    selectedFiles = files
+                        .map((fileEntity) => fileEntity.path.split('/').last)
+                        .toList();
+                    setState(() {});
                   } catch (e) {
                     log(e.toString());
                   }

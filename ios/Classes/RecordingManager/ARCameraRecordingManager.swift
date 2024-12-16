@@ -27,6 +27,7 @@ class ARCameraRecordingManager: NSObject {
     
     private let locationManager = CLLocationManager()
     
+    private var cameraIntrinsic: simd_float3x3?
     private var colorFrameResolution: [Int] = []
     private var depthFrameResolution: [Int] = []
     private var frequency: Int?
@@ -170,7 +171,7 @@ extension ARCameraRecordingManager: RecordingManager {
             numFrames = 0
             
             if let currentFrame = session.currentFrame {
-                // get depth resolution
+                cameraIntrinsic = currentFrame.camera.intrinsics
                 if let depthData = currentFrame.sceneDepth {
                     
                     let depthMap: CVPixelBuffer = depthData.depthMap
@@ -218,9 +219,27 @@ extension ARCameraRecordingManager: RecordingManager {
             confidenceMapRecorder.finishRecording()
             rgbRecorder.finishRecording(completion: completion)
             cameraInfoRecorder.finishRecording()
+            
+            writeMetadataToFile()
         }
     }
     
+    private func writeMetadataToFile() {
+        let cameraIntrinsicArray = cameraIntrinsic?.arrayRepresentation
+        let rgbStreamInfo = CameraStreamInfo(id: "rgb_video", encoding: "h264", frequency: frequency ?? 0, numberOfFrames: numFrames, fileExtension: "mp4", resolution: colorFrameResolution, intrinsics: cameraIntrinsicArray)
+        let depthStreamInfo = CameraStreamInfo(id: "lidar_depth_map", encoding: "float16_zlib", frequency: frequency ?? 0, numberOfFrames: numFrames, fileExtension: "depth.zlib", resolution: depthFrameResolution, intrinsics: nil)
+        let confidenceMapStreamInfo = StreamInfo(id: "confidence_map", encoding: "uint8_zlib", frequency: frequency ?? 0, numberOfFrames: numFrames, fileExtension: "confidence.zlib")
+        let cameraInfoStreamInfo = StreamInfo(id: "camera_info", encoding: "jsonl", frequency: frequency ?? 0, numberOfFrames: numFrames, fileExtension: "jsonl")
+        
+        let metadata = RecordingMetaData(streams: [rgbStreamInfo, depthStreamInfo, confidenceMapStreamInfo, cameraInfoStreamInfo], numberOfFiles: 5)
+        guard let recordingId = recordingId,let dirUrl = dirUrl else {
+            return
+        }
+      
+        let metadataPath = (dirUrl.path as NSString).appendingPathComponent((recordingId as NSString).appendingPathExtension("json")!)
+        
+        metadata.writeToFile(filepath: metadataPath)
+    }
 }
 
 @available(iOS 14.0, *)
