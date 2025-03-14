@@ -54,10 +54,50 @@ class LidarRecordingController {
 
   late MethodChannel _channel;
   StringResultHandler? onError;
-  RecordingResultHandler? onRecordingCompleted;
 
   void dispose() {
     _channel.invokeMethod<void>('dispose');
+  }
+
+  /// Starts recording LiDAR camera data.
+  ///
+  /// Returns a [Future] that completes when recording has started.
+  /// Throws a [PlatformException] if recording fails to start.
+  Future<void> startRecording() async {
+    try {
+      await _channel.invokeMethod<void>('startRecording');
+    } on PlatformException catch (e) {
+      throw 'Failed to start recording: ${e.message}';
+    }
+  }
+
+  /// Stops the current recording and returns the recording path and identifier.
+  ///
+  /// Returns a [Future] with a map containing the recording path and asset identifier.
+  /// Throws a [PlatformException] if stopping the recording fails.
+  Future<Map<String, String>> stopRecording() async {
+    try {
+      final result =
+          await _channel.invokeMethod<Map<dynamic, dynamic>>('stopRecording');
+
+      if (result == null) {
+        throw 'Failed to stop recording: No result returned';
+      }
+
+      final recordingPath = result['recordingPath'] as String?;
+      final assetIdentifier = result['assetIdentifier'] as String?;
+
+      if (recordingPath == null || assetIdentifier == null) {
+        throw 'Failed to stop recording: Missing path or identifier';
+      }
+
+      return {
+        'recordingPath': recordingPath,
+        'assetIdentifier': assetIdentifier,
+      };
+    } on PlatformException catch (e) {
+      throw 'Failed to stop recording: ${e.message}';
+    }
   }
 
   Future<void> _platformCallHandler(MethodCall call) {
@@ -67,20 +107,6 @@ class LidarRecordingController {
           if (onError != null) {
             onError!(call.arguments);
             debugPrint(call.arguments);
-          }
-          break;
-        case 'onRecordingCompleted':
-          if (onRecordingCompleted != null) {
-            if (call.arguments != null) {
-              final recordingPath = call.arguments["recordingPath"] as String?;
-              final identifier = call.arguments["assetIdentifier"] as String?;
-              if (recordingPath != null && identifier != null) {
-                onRecordingCompleted!(
-                  path: recordingPath,
-                  identifier: identifier,
-                );
-              }
-            }
           }
           break;
         default:

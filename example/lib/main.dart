@@ -142,6 +142,7 @@ class CameraView extends StatefulWidget {
 
 class _CameraViewState extends State<CameraView> {
   late LidarRecordingController lidarRecordingController;
+  bool isRecording = false;
 
   @override
   void dispose() {
@@ -154,16 +155,31 @@ class _CameraViewState extends State<CameraView> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       extendBody: true,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          if (!isRecording) {
+            setState(() {
+              isRecording = true;
+            });
+            await lidarRecordingController.startRecording();
+          } else {
+            setState(() {
+              isRecording = false;
+            });
+            final res = await lidarRecordingController.stopRecording();
+            print(res);
+          }
+        },
+      ),
       body: LidarCameraView(
         onRecordingControllerCreated: (controller) {
           lidarRecordingController = controller;
-          lidarRecordingController.onRecordingCompleted = _onRecordingCompleted;
         },
       ),
     );
   }
 
-  void _onRecordingCompleted({
+  void onStop({
     required String path,
     required String identifier,
   }) async {

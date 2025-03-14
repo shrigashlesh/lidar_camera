@@ -7,11 +7,13 @@
 
 import Foundation
 
+typealias RecordingManagerCompletion = (String?, String?) -> Void
+
 protocol RecordingManager {
     var isRecording: Bool { get }
     
     func getSession() -> NSObject
     
     func startRecording()
-    func stopRecording(completion: ((String?, String?) -> Void)?)
+    func stopRecording(completion: RecordingManagerCompletion?)
 }

@@ -1,7 +1,7 @@
 import Flutter
 import UIKit
 
-class FlutterLidarCameraView: NSObject, FlutterPlatformView, RecordingCompletionDelegate {
+class FlutterLidarCameraView: NSObject, FlutterPlatformView {
     func onRecordingCompleted(path: String, identifier: String) {
         // Create a dictionary with the recording path
         let arguments: [String: String] = ["recordingPath": path, "assetIdentifier": identifier]
@@ -21,7 +21,7 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView, RecordingCompletion
         _view = UIView()
         channel = FlutterMethodChannel(name: "lidar_camera_\(viewId)", binaryMessenger: messenger)
         super.init()
-        createNativeView(view: _view)       
+        createNativeView(view: _view)
         channel.setMethodCallHandler(onMethodCalled)
     }
     
@@ -33,7 +33,6 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView, RecordingCompletion
         let topController = UIApplication.shared.keyWindowPresentedController
         
         let vc = CameraViewController()
-        vc.recordingCompletionDelegate = self
         viewController = vc // Store reference to view controller
         let uiKitView = vc.view!
         uiKitView.translatesAutoresizingMaskIntoConstraints = false
@@ -52,14 +51,59 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView, RecordingCompletion
         vc.didMove(toParent: topController)
     }
 
-     func onMethodCalled(_ call: FlutterMethodCall, _ result: FlutterResult) {
-         _ = call.arguments as? [String: Any]
+    func onMethodCalled(_ call: FlutterMethodCall, _ result:@escaping FlutterResult) {
+        _ = call.arguments as? [String: Any]
         switch call.method {
+        case "startRecording":
+            startRecording(result)
+        case "stopRecording":
+            stopRecording(result)
         case "dispose":
             onDispose(result)
-            result(nil)
         default:
             result(FlutterMethodNotImplemented)
+        }
+    }
+    
+    func startRecording(_ result: @escaping FlutterResult) {
+        guard let cameraVC = viewController as? CameraViewController else {
+            result(FlutterError(code: "UNAVAILABLE",
+                              message: "Camera controller not available",
+                              details: nil))
+            return
+        }
+        
+        cameraVC.startRecording { success in
+            if success {
+                result(nil)
+            } else {
+                result(FlutterError(code: "RECORDING_ERROR",
+                                  message:  "Failed to start recording",
+                                  details: nil))
+            }
+        }
+    }
+    
+    func stopRecording(_ result: @escaping FlutterResult) {
+        guard let cameraVC = viewController as? CameraViewController else {
+            result(FlutterError(code: "UNAVAILABLE",
+                              message: "Camera controller not available",
+                              details: nil))
+            return
+        }
+        
+        cameraVC.stopRecording { success, path, identifier in
+            if success, let path = path, let identifier = identifier {
+                // Return recording information directly
+                result([
+                    "recordingPath": path,
+                    "assetIdentifier": identifier
+                ])
+            } else {
+                result(FlutterError(code: "STOP_RECORDING_ERROR",
+                                  message: "Failed to stop recording",
+                                  details: nil))
+            }
         }
     }
 

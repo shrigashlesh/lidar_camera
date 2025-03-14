@@ -153,7 +153,7 @@ class ARCameraRecordingManager: NSObject {
 
 @available(iOS 14.0, *)
 extension ARCameraRecordingManager: RecordingManager {
-    
+  
     func getSession() -> NSObject {
         return session
     }
@@ -206,7 +206,8 @@ extension ARCameraRecordingManager: RecordingManager {
         }
         
     }
-    func stopRecording(completion: ((String?, String?) -> Void)? = nil) {
+    
+    func stopRecording(completion: RecordingManagerCompletion?) {
         deactivateAudioSession()
         
         sessionQueue.sync { [self] in

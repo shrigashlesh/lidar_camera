@@ -122,7 +122,7 @@ class RGBRecorder: NSObject, Recorder {
         }
     }
     
-    func finishRecording(completion: ((String?, String?) -> Void)? = nil) {
+    func finishRecording(completion: RecordingManagerCompletion?) {
         
         rgbRecorderQueue.async {
             
@@ -146,7 +146,7 @@ class RGBRecorder: NSObject, Recorder {
         }
     }
     
-    func saveVideoToGallery(videoURL: URL, completion: ((String?, String?) -> Void)?) {
+    func saveVideoToGallery(videoURL: URL, completion: RecordingManagerCompletion?) {
         // Request authorization if not already done
         PHPhotoLibrary.requestAuthorization { status in
             guard status == .authorized else {
