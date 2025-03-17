@@ -167,7 +167,7 @@ class _CameraViewState extends State<CameraView> {
               isRecording = false;
             });
             final res = await lidarRecordingController.stopRecording();
-            print(res);
+            log(res.toString());
           }
         },
       ),
