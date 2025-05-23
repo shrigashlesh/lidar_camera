@@ -2,15 +2,13 @@ import Flutter
 import UIKit
 
 class FlutterLidarCameraView: NSObject, FlutterPlatformView {
-    func onRecordingCompleted(recordingUUID: String) {
-        let arguments: [String: String] = ["recordingUUID": recordingUUID]
-        sendToFlutter("onRecordingCompleted", arguments: arguments)
-    }
     
     private var _view: UIView
     private var viewController: UIViewController?
     let channel: FlutterMethodChannel
-    
+    let eventChannel: FlutterEventChannel
+    var eventSink: FlutterEventSink?
+
     init(
         frame: CGRect,
         viewIdentifier viewId: Int64,
@@ -18,11 +16,13 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
         binaryMessenger messenger: FlutterBinaryMessenger
     ) {
         _view = UIView()
-        channel = FlutterMethodChannel(name: "lidar_camera_\(viewId)", binaryMessenger: messenger)
+        channel = FlutterMethodChannel(name: "lidar/view_\(viewId)", binaryMessenger: messenger)
+        eventChannel = FlutterEventChannel(name: "lidar/stream", binaryMessenger: messenger)
         super.init()
         createNativeView(view: _view)
         channel.setMethodCallHandler(onMethodCalled)
     }
+
     
     func view() -> UIView {
         return _view
@@ -33,6 +33,7 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
         
         let vc = CameraViewController()
         viewController = vc // Store reference to view controller
+
         let uiKitView = vc.view!
         uiKitView.translatesAutoresizingMaskIntoConstraints = false
         
@@ -129,5 +130,10 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
         DispatchQueue.main.async {
             self.channel.invokeMethod(method, arguments: arguments)
         }
+    }
+    
+    func onRecordingCompleted(recordingUUID: String) {
+        let arguments: [String: String] = ["recordingUUID": recordingUUID]
+        sendToFlutter("onRecordingCompleted", arguments: arguments)
     }
 }

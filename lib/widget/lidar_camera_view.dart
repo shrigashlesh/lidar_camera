@@ -1,13 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:lidar_camera/utils/lidar_rgb_frame.dart';
 
 typedef LidarRecordingControllerCreatedCallback = void Function(
     LidarRecordingController controller);
-typedef RecordingResultHandler = void Function({
-  required String path,
-  required String identifier,
-});
+
 typedef StringResultHandler = void Function(String? error);
 
 class LidarCameraView extends StatefulWidget {
@@ -25,7 +25,7 @@ class _LidarCameraViewState extends State<LidarCameraView> {
   Widget build(BuildContext context) {
     if (defaultTargetPlatform == TargetPlatform.iOS) {
       return UiKitView(
-        viewType: 'lidar_cam_view',
+        viewType: 'lidar/view',
         onPlatformViewCreated: onPlatformViewCreated,
       );
     }
@@ -48,14 +48,19 @@ class LidarRecordingController {
   LidarRecordingController._init({
     required int id,
   }) {
-    _channel = MethodChannel('lidar_camera_$id');
+    _channel = MethodChannel('lidar/view_$id');
+    _eventChannel = const EventChannel('lidar/stream');
     _channel.setMethodCallHandler(_platformCallHandler);
   }
 
   late MethodChannel _channel;
+  late EventChannel _eventChannel;
   StringResultHandler? onError;
+  StreamSubscription? _streamSubscription;
 
   void dispose() {
+    _streamSubscription?.cancel();
+    _streamSubscription = null;
     _channel.invokeMethod<void>('dispose');
   }
 
@@ -94,6 +99,29 @@ class LidarRecordingController {
     } on PlatformException catch (e) {
       throw 'Failed to stop recording: ${e.message}';
     }
+  }
+
+  /// Listen to LiDAR camera stream data directly from the native side.
+  ///
+  /// The [onData] callback provides a [LidarRgbFrame] frame.
+  /// Call this after the controller is created to start receiving frames.
+  void frameStream(void Function(LidarRgbFrame frame) onData) {
+    _streamSubscription?.cancel();
+    _streamSubscription = _eventChannel.receiveBroadcastStream().listen(
+      (event) {
+        try {
+          if (event is Map) {
+            final frame = LidarRgbFrame.fromMap(event);
+            onData(frame);
+          }
+        } catch (e) {
+          debugPrint('Error parsing CameraFrame: $e');
+        }
+      },
+      onError: (error) {
+        debugPrint('Stream error: $error');
+      },
+    );
   }
 
   Future<void> _platformCallHandler(MethodCall call) {

@@ -69,6 +69,13 @@ class PickerView extends StatefulWidget {
 
 class _PickerViewState extends State<PickerView> {
   List<String> selectedFiles = [];
+  final LidarPlugin lidar = LidarPlugin();
+
+  @override
+  void initState() {
+    super.initState();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -107,9 +114,8 @@ class _PickerViewState extends State<PickerView> {
                   if (file == null) return;
                   final fileName = await file.titleAsync;
                   final recordingUUID = fileName.split('.').first;
-                  final LidarDepthPlugin cam = LidarDepthPlugin();
                   try {
-                    final files = await cam.fetchRecordingFiles(
+                    final files = await lidar.fetchRecordingFiles(
                       recordingUUID: recordingUUID,
                     );
                     selectedFiles = files
@@ -174,6 +180,9 @@ class _CameraViewState extends State<CameraView> {
       body: LidarCameraView(
         onRecordingControllerCreated: (controller) {
           lidarRecordingController = controller;
+          lidarRecordingController.frameStream((frame) {
+            print(frame.toString());
+          });
         },
       ),
     );
@@ -195,25 +204,6 @@ class _CameraViewState extends State<CameraView> {
                 },
                 child: const Text("Close"),
               ),
-              TextButton(
-                onPressed: () async {
-                  final recordingUUID = path.split('/').last.split('.').first;
-                  log(identifier);
-                  final LidarDepthPlugin cam = LidarDepthPlugin();
-                  try {
-                    await cam.deleteRecording(
-                      recordingUUID: recordingUUID,
-                      assetIdentifier: identifier,
-                    );
-                  } catch (e) {
-                    log(e.toString());
-                  }
-                },
-                child: const Text(
-                  "Delete",
-                  style: TextStyle(color: Colors.red),
-                ),
-              )
             ],
           );
         });

@@ -24,23 +24,14 @@ abstract class LidarCameraPlatform extends PlatformInterface {
   }
 
   /// Check for lidar availability
-  Future<bool?> checkLidarAvailability() {
-    throw UnimplementedError(
-        'checkLidarAvailability() has not been implemented.');
+  Future<bool?> isAvailable() {
+    throw UnimplementedError('isAvailable() has not been implemented.');
   }
 
-  /// Deletes the depth conversion data for the given video along with the video from Photos Library.
-  Future<bool> deleteRecording({
-    required String assetIdentifier,
-    required String recordingUUID,
-  }) {
-    throw UnimplementedError('deleteRecording() has not been implemented.');
-  }
-
-  /// Returns recording data (depth, confidence, intrinsics) for the given video.
+  /// Returns recording data (video, depth, confidence, intrinsics) for the given recording UUID.
   Future<List<String>?> listRecordingFiles({
     required String recordingUUID,
   }) {
-    throw UnimplementedError('deleteRecording() has not been implemented.');
+    throw UnimplementedError('listRecordingFiles() has not been implemented.');
   }
 }

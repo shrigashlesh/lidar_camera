@@ -6,16 +6,20 @@ import Photos
 public class LidarCameraPlugin: NSObject, FlutterPlugin {
     public static func register(with registrar: FlutterPluginRegistrar) {
         let lidarFactory = FlutterLidarCameraFactory(messenger: registrar.messenger())
-        registrar.register(lidarFactory, withId: "lidar_cam_view")
+        registrar.register(lidarFactory, withId: "lidar/view")
         
-        let channel = FlutterMethodChannel(name: "lidar_data_reader", binaryMessenger: registrar.messenger())
+        let channel = FlutterMethodChannel(name: "lidar/communication", binaryMessenger: registrar.messenger())
         let instance = LidarCameraPlugin()
         registrar.addMethodCallDelegate(instance, channel: channel)
+        
+        let cameraStreamChannel = FlutterEventChannel(name: "lidar/stream", binaryMessenger: registrar.messenger())
+        let cameraStreamHandler: CameraStreamHandler = CameraStreamHandler.shared
+        cameraStreamChannel.setStreamHandler(cameraStreamHandler)
     }
     
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
-        case "checkLidarAvailability":
+        case "isAvailable":
             checkLidarAvailability(result: result)
         default:
             result(FlutterMethodNotImplemented)

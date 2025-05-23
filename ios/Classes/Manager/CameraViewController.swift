@@ -6,7 +6,7 @@ class CameraViewController: UIViewController {
     
     private var recordingManager: ARCameraRecordingManager?
     
-    private var arView: ARView?
+     var arView: ARView?
     
     init() {
         super.init(nibName: nil, bundle: nil)
@@ -38,8 +38,14 @@ class CameraViewController: UIViewController {
             recordingManager = ARCameraRecordingManager()
             let session = recordingManager!.getSession() as! ARSession
             arView = ARView()
-            arView?.session = session
-            setupPreviewView(previewView: arView!)
+            guard let arView = arView else {
+                print("Error: arView is not initialized yet")
+                return
+            }
+            CameraStreamHandler.shared.setActiveARView(arView)
+
+            arView.session = session
+            setupPreviewView(previewView: arView)
         } else {
             print("AR camera only available for iOS 14.0 or newer.")
         }
@@ -74,8 +80,8 @@ class CameraViewController: UIViewController {
         guard let recordingManager = recordingManager else{
             return
         }
-        recordingManager.stopRecording(completion: { [weak self] recordingUUID in
-            guard let self = self, let recordingUUID = recordingUUID else {
+        recordingManager.stopRecording(completion: { recordingUUID in
+            guard let recordingUUID = recordingUUID else {
                 return
             }
             completion?(recordingUUID)

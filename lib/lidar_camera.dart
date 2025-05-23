@@ -6,24 +6,8 @@ import 'package:path_provider/path_provider.dart';
 import 'lidar_camera_platform_interface.dart';
 export './widget/lidar_camera_view.dart';
 
-class LidarDepthPlugin {
-  Future<bool?> checkLidarAvailability() {
-    return LidarCameraPlatform.instance.checkLidarAvailability();
-  }
-
-  Future<bool> deleteRecording({
-    required String recordingUUID,
-    required String assetIdentifier,
-  }) async {
-    try {
-      return await LidarCameraPlatform.instance.deleteRecording(
-        assetIdentifier: assetIdentifier,
-        recordingUUID: recordingUUID,
-      );
-    } catch (_) {
-      rethrow;
-    }
-  }
+class LidarPlugin {
+  Future<bool?> isAvailable() => LidarCameraPlatform.instance.isAvailable();
 
   Future<List<FileSystemEntity>> fetchRecordingFiles({
     required String recordingUUID,
