@@ -218,10 +218,11 @@ extension ARCameraRecordingManager: RecordingManager {
             // Finish the recordings
             depthRecorder.finishRecording()
             confidenceMapRecorder.finishRecording()
-            rgbRecorder.finishRecording(completion: completion)
+            rgbRecorder.finishRecording()
             cameraInfoRecorder.finishRecording()
             
             writeMetadataToFile()
+            completion?(recordingId)
         }
     }
     

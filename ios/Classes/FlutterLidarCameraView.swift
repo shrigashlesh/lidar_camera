@@ -2,16 +2,15 @@ import Flutter
 import UIKit
 
 class FlutterLidarCameraView: NSObject, FlutterPlatformView {
-    func onRecordingCompleted(path: String, identifier: String) {
-        // Create a dictionary with the recording path
-        let arguments: [String: String] = ["recordingPath": path, "assetIdentifier": identifier]
-        sendToFlutter("onRecordingCompleted", arguments: arguments) // Pass the dictionary as arguments
+    func onRecordingCompleted(recordingUUID: String) {
+        let arguments: [String: String] = ["recordingUUID": recordingUUID]
+        sendToFlutter("onRecordingCompleted", arguments: arguments)
     }
     
     private var _view: UIView
     private var viewController: UIViewController?
     let channel: FlutterMethodChannel
-
+    
     init(
         frame: CGRect,
         viewIdentifier viewId: Int64,
@@ -50,7 +49,7 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
         
         vc.didMove(toParent: topController)
     }
-
+    
     func onMethodCalled(_ call: FlutterMethodCall, _ result:@escaping FlutterResult) {
         _ = call.arguments as? [String: Any]
         switch call.method {
@@ -68,8 +67,8 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
     func startRecording(_ result: @escaping FlutterResult) {
         guard let cameraVC = viewController as? CameraViewController else {
             result(FlutterError(code: "UNAVAILABLE",
-                              message: "Camera controller not available",
-                              details: nil))
+                                message: "Camera controller not available",
+                                details: nil))
             return
         }
         
@@ -78,8 +77,8 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
                 result(nil)
             } else {
                 result(FlutterError(code: "RECORDING_ERROR",
-                                  message:  "Failed to start recording",
-                                  details: nil))
+                                    message:  "Failed to start recording",
+                                    details: nil))
             }
         }
     }
@@ -87,30 +86,27 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
     func stopRecording(_ result: @escaping FlutterResult) {
         guard let cameraVC = viewController as? CameraViewController else {
             result(FlutterError(code: "UNAVAILABLE",
-                              message: "Camera controller not available",
-                              details: nil))
+                                message: "Camera controller not available",
+                                details: nil))
             return
         }
         
-        cameraVC.stopRecording { success, path, identifier in
-            if success, let path = path, let identifier = identifier {
-                // Return recording information directly
-                result([
-                    "recordingPath": path,
-                    "assetIdentifier": identifier
-                ])
-            } else {
-                result(FlutterError(code: "STOP_RECORDING_ERROR",
-                                  message: "Failed to stop recording",
-                                  details: nil))
+        cameraVC.stopRecording { recordingUUID in
+            guard let recordingUUID = recordingUUID else { result(FlutterError(code: "STOP_RECORDING_ERROR",
+                                                                               message: "Failed to stop recording",
+                                                                               details: nil))
+                return
             }
+            result([
+                "recordingUUID": recordingUUID,
+            ])
         }
     }
-
+    
     func onDispose(_ result: FlutterResult) {
         // Remove the method call handler
         channel.setMethodCallHandler(nil)
-
+        
         // Cleanup viewController if it exists
         if let vc = viewController {
             vc.willMove(toParent: nil)
@@ -118,7 +114,7 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
             vc.removeFromParent()
             viewController = nil
         }
-
+        
         result(nil)
     }
     
@@ -128,7 +124,7 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
         viewController?.removeFromParent()
         viewController = nil
     }
-
+    
     func sendToFlutter(_ method: String, arguments: Any?) {
         DispatchQueue.main.async {
             self.channel.invokeMethod(method, arguments: arguments)

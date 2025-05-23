@@ -28,7 +28,7 @@ class CameraInfo: Encodable {
     
     func getJsonEncoding() -> String {
         let encoder = JSONEncoder()
-//        encoder.outputFormatting = .prettyPrinted
+        //        encoder.outputFormatting = .prettyPrinted
         encoder.keyEncodingStrategy = .convertToSnakeCase
         
         let data = try! encoder.encode(self)
@@ -79,7 +79,7 @@ class CameraInfoRecorder: Recorder {
         }
     }
     
-    func finishRecording(completion: RecordingManagerCompletion? = nil) {
+    func finishRecording() {
         cameraInfoRecorderQueue.async {
             if self.fileHandle != nil {
                 self.fileHandle!.closeFile()

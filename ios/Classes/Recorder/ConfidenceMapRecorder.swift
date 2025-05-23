@@ -65,7 +65,8 @@ class ConfidenceMapRecorder: Recorder {
         }
         
     }
-    func finishRecording(completion: ((String?, String?) -> Void)? = nil) {
+    
+    func finishRecording() {
         confidenceMapRecorderQueue.async {
             if self.fileHandle != nil {
                 self.fileHandle!.closeFile()
@@ -78,7 +79,7 @@ class ConfidenceMapRecorder: Recorder {
             self.removeUncompressedFile()    
         }
     }
-
+    
     private func compressFile() {
         
         let algorithm = COMPRESSION_ZLIB

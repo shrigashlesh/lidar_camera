@@ -71,11 +71,11 @@ class LidarRecordingController {
     }
   }
 
-  /// Stops the current recording and returns the recording path and identifier.
+  /// Stops the current recording and returns the recording identifier.
   ///
-  /// Returns a [Future] with a map containing the recording path and asset identifier.
+  /// Returns a [Future] with the recording UUID.
   /// Throws a [PlatformException] if stopping the recording fails.
-  Future<Map<String, String>> stopRecording() async {
+  Future<String> stopRecording() async {
     try {
       final result =
           await _channel.invokeMethod<Map<dynamic, dynamic>>('stopRecording');
@@ -84,17 +84,13 @@ class LidarRecordingController {
         throw 'Failed to stop recording: No result returned';
       }
 
-      final recordingPath = result['recordingPath'] as String?;
-      final assetIdentifier = result['assetIdentifier'] as String?;
+      final recordingUUID = result['recordingUUID'] as String?;
 
-      if (recordingPath == null || assetIdentifier == null) {
+      if (recordingUUID == null) {
         throw 'Failed to stop recording: Missing path or identifier';
       }
 
-      return {
-        'recordingPath': recordingPath,
-        'assetIdentifier': assetIdentifier,
-      };
+      return recordingUUID;
     } on PlatformException catch (e) {
       throw 'Failed to stop recording: ${e.message}';
     }

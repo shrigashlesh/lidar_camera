@@ -5,9 +5,9 @@ import UIKit
 class CameraViewController: UIViewController {
     
     private var recordingManager: ARCameraRecordingManager?
-        
+    
     private var arView: ARView?
-
+    
     init() {
         super.init(nibName: nil, bundle: nil)
     }
@@ -63,22 +63,22 @@ class CameraViewController: UIViewController {
     
     
     func startRecording(completion: ((Bool) -> Void)? = nil) {
-    guard let recordingManager = recordingManager else {
-        return
-    }
+        guard let recordingManager = recordingManager else {
+            return
+        }
         recordingManager.startRecording()
         completion?(true)
     }
     
-    func stopRecording(completion: ((Bool, String?, String?) -> Void)? = nil) {
-    guard let recordingManager = recordingManager else{
-        return
-    }
-    recordingManager.stopRecording(completion: { [weak self] path, identifier in
-            guard let self = self, let path = path, let identifier = identifier else {
+    func stopRecording(completion: RecordingManagerCompletion?) {
+        guard let recordingManager = recordingManager else{
+            return
+        }
+        recordingManager.stopRecording(completion: { [weak self] recordingUUID in
+            guard let self = self, let recordingUUID = recordingUUID else {
                 return
             }
-            completion?(true, path, identifier)
+            completion?(recordingUUID)
         })
     }
 }

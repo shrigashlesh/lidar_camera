@@ -7,7 +7,7 @@
 
 import Foundation
 
-typealias RecordingManagerCompletion = (String?, String?) -> Void
+typealias RecordingManagerCompletion = (String?) -> Void
 
 protocol RecordingManager {
     var isRecording: Bool { get }
