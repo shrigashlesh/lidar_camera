@@ -8,7 +8,7 @@ class CameraViewController: UIViewController, FlutterStreamHandler {
     private var recordingManager: ARCameraRecordingManager?
     
     var arView: ARView?
-    private var messenger: FlutterBinaryMessenger?
+    private weak var messenger: FlutterBinaryMessenger?
     private var eventChannel: FlutterEventChannel?
     
     init(messenger: FlutterBinaryMessenger?) {
@@ -30,7 +30,7 @@ class CameraViewController: UIViewController, FlutterStreamHandler {
     // MARK: - FlutterStreamHandler
     
     func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
-        recordingManager?.rgbRecorder.startStreaming(eventSink: events)
+        recordingManager?.rgbStreamer.startStreaming(eventSink: events)
         // You can start sending events now
         return nil
     }
@@ -39,12 +39,19 @@ class CameraViewController: UIViewController, FlutterStreamHandler {
         return nil
     }
     
-    deinit {
+    func cleanup() {
         recordingManager = nil
         arView?.scene.anchors.removeAll()
+        arView?.removeFromSuperview()
         arView = nil
-        eventChannel?.setStreamHandler(nil)
+        eventChannel?.setStreamHandler(nil)  // Break retain cycle
         eventChannel = nil
+        messenger = nil
+    }
+
+    
+    deinit {
+        cleanup()
         print("CameraViewController deinitialized")
     }
     
@@ -58,6 +65,7 @@ class CameraViewController: UIViewController, FlutterStreamHandler {
         super.viewWillAppear(animated)
         UIApplication.shared.isIdleTimerDisabled = true
     }
+    
     private func initRecordingManagerAndPerformRecordingModeRelatedSetup() {
         if #available(iOS 14.0, *) {
             recordingManager = ARCameraRecordingManager()

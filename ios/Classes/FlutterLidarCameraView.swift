@@ -4,9 +4,8 @@ import UIKit
 class FlutterLidarCameraView: NSObject, FlutterPlatformView {
     
     private var _view: UIView
-    private var viewController: UIViewController?
-    let channel: FlutterMethodChannel
-    private var isDisposed = false
+    private weak var viewController: CameraViewController?
+    private let channel: FlutterMethodChannel
 
     init(
         frame: CGRect,
@@ -14,52 +13,42 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
         arguments args: Any?,
         binaryMessenger messenger: FlutterBinaryMessenger
     ) {
-        _view = UIView()
-        channel = FlutterMethodChannel(name: "lidar/view_\(viewId)", binaryMessenger: messenger)
+        self._view = UIView()
+        self.channel = FlutterMethodChannel(name: "lidar/view_\(viewId)", binaryMessenger: messenger)
         super.init()
-        viewController = CameraViewController(messenger: messenger)
-        createNativeView(view: _view)
-        channel.setMethodCallHandler(onMethodCalled)
+        createNativeView(binaryMessenger: messenger)
+        channel.setMethodCallHandler(handleMethodCall)
     }
 
-    
     func view() -> UIView {
         return _view
     }
-    
-    func createNativeView(view _view: UIView){
-        guard let viewController = viewController else { return }
-        let topController = UIApplication.shared.keyWindowPresentedController
-        
-        
 
-        let uiKitView = viewController.view!
-        uiKitView.translatesAutoresizingMaskIntoConstraints = false
-        
-        topController?.addChild(viewController)
-        _view.addSubview(uiKitView)
-        
-        NSLayoutConstraint.activate(
-            [
-                uiKitView.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
-                uiKitView.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
-                uiKitView.topAnchor.constraint(equalTo: _view.topAnchor),
-                uiKitView.bottomAnchor.constraint(equalTo:  _view.bottomAnchor)
-            ])
-        
-        viewController.didMove(toParent: topController)
-    }
-    
-    func onMethodCalled(_ call: FlutterMethodCall, _ result:@escaping FlutterResult) {
-        // Check if already disposed
-        guard !isDisposed else {
-            result(FlutterError(code: "DISPOSED",
-                                message: "View has been disposed",
-                                details: nil))
+    private func createNativeView(binaryMessenger messenger: FlutterBinaryMessenger) {
+        guard let topController = UIApplication.shared.keyWindowPresentedController else {
             return
         }
-        
-        _ = call.arguments as? [String: Any]
+
+        let vc = CameraViewController(messenger: messenger)
+        self.viewController = vc
+
+        let cameraView = vc.view!
+        cameraView.translatesAutoresizingMaskIntoConstraints = false
+
+        topController.addChild(vc)
+        _view.addSubview(cameraView)
+
+        NSLayoutConstraint.activate([
+            cameraView.leadingAnchor.constraint(equalTo: _view.leadingAnchor),
+            cameraView.trailingAnchor.constraint(equalTo: _view.trailingAnchor),
+            cameraView.topAnchor.constraint(equalTo: _view.topAnchor),
+            cameraView.bottomAnchor.constraint(equalTo: _view.bottomAnchor)
+        ])
+
+        vc.didMove(toParent: topController)
+    }
+
+    private func handleMethodCall(_ call: FlutterMethodCall, result: @escaping FlutterResult) {
         switch call.method {
         case "startRecording":
             startRecording(result)
@@ -71,117 +60,62 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
             result(FlutterMethodNotImplemented)
         }
     }
-    
-    func startRecording(_ result: @escaping FlutterResult) {
-        guard !isDisposed else {
-            result(FlutterError(code: "DISPOSED",
-                                message: "View has been disposed",
-                                details: nil))
+
+    private func startRecording(_ result: @escaping FlutterResult) {
+        guard let cameraVC = viewController else {
+            result(FlutterError(code: "UNAVAILABLE", message: "Camera controller not available", details: nil))
             return
         }
-        
-        guard let cameraVC = viewController as? CameraViewController else {
-            result(FlutterError(code: "UNAVAILABLE",
-                                message: "Camera controller not available",
-                                details: nil))
-            return
-        }
-        
+
         cameraVC.startRecording { success in
-            if success {
-                result(nil)
-            } else {
-                result(FlutterError(code: "RECORDING_ERROR",
-                                    message:  "Failed to start recording",
-                                    details: nil))
-            }
+            result(success ? nil : FlutterError(code: "RECORDING_ERROR", message: "Failed to start recording", details: nil))
         }
     }
-    
-    func stopRecording(_ result: @escaping FlutterResult) {
-        guard !isDisposed else {
-            result(FlutterError(code: "DISPOSED",
-                                message: "View has been disposed",
-                                details: nil))
+
+    private func stopRecording(_ result: @escaping FlutterResult) {
+        guard let cameraVC = viewController else {
+            result(FlutterError(code: "UNAVAILABLE", message: "Camera controller not available", details: nil))
             return
         }
-        
-        guard let cameraVC = viewController as? CameraViewController else {
-            result(FlutterError(code: "UNAVAILABLE",
-                                message: "Camera controller not available",
-                                details: nil))
-            return
-        }
-        
+
         cameraVC.stopRecording { recordingUUID in
-            guard let recordingUUID = recordingUUID else {
-                result(FlutterError(code: "STOP_RECORDING_ERROR",
-                                   message: "Failed to stop recording",
-                                   details: nil))
-                return
+            if let recordingUUID = recordingUUID {
+                result(["recordingUUID": recordingUUID])
+            } else {
+                result(FlutterError(code: "STOP_RECORDING_ERROR", message: "Failed to stop recording", details: nil))
             }
-            result([
-                "recordingUUID": recordingUUID,
-            ])
         }
     }
-    
-    func onDispose(_ result: FlutterResult) {
+
+    private func onDispose(_ result: FlutterResult) {
         performDisposal()
         result(nil)
     }
-    
+
     private func performDisposal() {
-        guard !isDisposed else { return }
-        
-        isDisposed = true
-        
-        // Remove method call handler first
         channel.setMethodCallHandler(nil)
-        
-        // Stop any ongoing recording if applicable
-        if let cameraVC = viewController as? CameraViewController {
-            cameraVC.stopRecording { _ in
-                // Recording stopped, cleanup will continue
-            }
-        }
-        
-        // Cleanup viewController
-        cleanupViewController()
-    }
-    
-    private func cleanupViewController() {
-        guard let vc = viewController else { return }
-        
-        // Ensure cleanup happens on main thread
-        DispatchQueue.main.async {
-            // Remove from parent view controller
+
+        if let vc = viewController {
+            vc.cleanup()
             vc.willMove(toParent: nil)
             vc.view.removeFromSuperview()
             vc.removeFromParent()
-            
-            // Clear the reference
-            self.viewController = nil
+            viewController = nil
         }
     }
-    
-    deinit {
-        // Ensure disposal happens even if onDispose wasn't called
-        performDisposal()
-    }
-    
+
     func sendToFlutter(_ method: String, arguments: Any?) {
-        guard !isDisposed else { return }
-        
         DispatchQueue.main.async {
             self.channel.invokeMethod(method, arguments: arguments)
         }
     }
-    
+
     func onRecordingCompleted(recordingUUID: String) {
-        guard !isDisposed else { return }
-        
-        let arguments: [String: String] = ["recordingUUID": recordingUUID]
-        sendToFlutter("onRecordingCompleted", arguments: arguments)
+        sendToFlutter("onRecordingCompleted", arguments: ["recordingUUID": recordingUUID])
+    }
+
+    deinit {
+        performDisposal()
+        print("FlutterLidarCameraView deinitialized")
     }
 }

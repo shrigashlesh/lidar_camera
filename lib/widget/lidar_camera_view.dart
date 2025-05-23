@@ -49,7 +49,7 @@ class LidarRecordingController {
     required int id,
   }) {
     _channel = MethodChannel('lidar/view_$id');
-    _eventChannel = EventChannel('lidar/stream');
+    _eventChannel = const EventChannel('lidar/stream');
     _channel.setMethodCallHandler(_platformCallHandler);
   }
 
