@@ -113,14 +113,17 @@ class DepthRecorder: Recorder {
     
     
     private func compressFile() {
+        guard let fileUrl = fileUrl,let compressedFileUrl = compressedFileUrl else{
+            return
+        }
         
         let algorithm = COMPRESSION_ZLIB
         let operation = COMPRESSION_STREAM_ENCODE
         
-        FileManager.default.createFile(atPath: compressedFileUrl!.path, contents: nil, attributes: nil)
+        FileManager.default.createFile(atPath: compressedFileUrl.path, contents: nil, attributes: nil)
         
-        if let sourceFileHandle = try? FileHandle(forReadingFrom: fileUrl!),
-           let destinationFileHandle = try? FileHandle(forWritingTo: compressedFileUrl!) {
+        if let sourceFileHandle = try? FileHandle(forReadingFrom: fileUrl),
+           let destinationFileHandle = try? FileHandle(forWritingTo: compressedFileUrl) {
             
             Compressor.streamingCompression(operation: operation,
                                             sourceFileHandle: sourceFileHandle,

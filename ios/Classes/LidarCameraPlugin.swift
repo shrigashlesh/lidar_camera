@@ -11,10 +11,6 @@ public class LidarCameraPlugin: NSObject, FlutterPlugin {
         let channel = FlutterMethodChannel(name: "lidar/communication", binaryMessenger: registrar.messenger())
         let instance = LidarCameraPlugin()
         registrar.addMethodCallDelegate(instance, channel: channel)
-        
-        let cameraStreamChannel = FlutterEventChannel(name: "lidar/stream", binaryMessenger: registrar.messenger())
-        let cameraStreamHandler: CameraStreamHandler = CameraStreamHandler.shared
-        cameraStreamChannel.setStreamHandler(cameraStreamHandler)
     }
     
     public func handle(_ call: FlutterMethodCall, result: @escaping FlutterResult) {

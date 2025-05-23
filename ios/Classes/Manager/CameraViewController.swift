@@ -1,25 +1,50 @@
 import ARKit
 import RealityKit
 import UIKit
+import Flutter
 
-class CameraViewController: UIViewController {
+class CameraViewController: UIViewController, FlutterStreamHandler {
     
     private var recordingManager: ARCameraRecordingManager?
     
-     var arView: ARView?
+    var arView: ARView?
+    private var messenger: FlutterBinaryMessenger?
+    private var eventChannel: FlutterEventChannel?
     
-    init() {
+    init(messenger: FlutterBinaryMessenger?) {
+        self.messenger = messenger
         super.init(nibName: nil, bundle: nil)
+        setupEventChannel()
     }
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
     
+    private func setupEventChannel() {
+        guard let messenger = messenger else { return }
+        eventChannel = FlutterEventChannel(name: "lidar/stream", binaryMessenger: messenger)
+        eventChannel?.setStreamHandler(self)
+    }
+    
+    // MARK: - FlutterStreamHandler
+    
+    func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+        recordingManager?.rgbRecorder.startStreaming(eventSink: events)
+        // You can start sending events now
+        return nil
+    }
+    
+    func onCancel(withArguments arguments: Any?) -> FlutterError? {
+        return nil
+    }
+    
     deinit {
         recordingManager = nil
         arView?.scene.anchors.removeAll()
         arView = nil
+        eventChannel?.setStreamHandler(nil)
+        eventChannel = nil
         print("CameraViewController deinitialized")
     }
     
@@ -42,8 +67,7 @@ class CameraViewController: UIViewController {
                 print("Error: arView is not initialized yet")
                 return
             }
-            CameraStreamHandler.shared.setActiveARView(arView)
-
+            
             arView.session = session
             setupPreviewView(previewView: arView)
         } else {

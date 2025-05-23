@@ -6,8 +6,7 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
     private var _view: UIView
     private var viewController: UIViewController?
     let channel: FlutterMethodChannel
-    let eventChannel: FlutterEventChannel
-    var eventSink: FlutterEventSink?
+    private var isDisposed = false
 
     init(
         frame: CGRect,
@@ -17,8 +16,8 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
     ) {
         _view = UIView()
         channel = FlutterMethodChannel(name: "lidar/view_\(viewId)", binaryMessenger: messenger)
-        eventChannel = FlutterEventChannel(name: "lidar/stream", binaryMessenger: messenger)
         super.init()
+        viewController = CameraViewController(messenger: messenger)
         createNativeView(view: _view)
         channel.setMethodCallHandler(onMethodCalled)
     }
@@ -29,15 +28,15 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
     }
     
     func createNativeView(view _view: UIView){
+        guard let viewController = viewController else { return }
         let topController = UIApplication.shared.keyWindowPresentedController
         
-        let vc = CameraViewController()
-        viewController = vc // Store reference to view controller
+        
 
-        let uiKitView = vc.view!
+        let uiKitView = viewController.view!
         uiKitView.translatesAutoresizingMaskIntoConstraints = false
         
-        topController?.addChild(vc)
+        topController?.addChild(viewController)
         _view.addSubview(uiKitView)
         
         NSLayoutConstraint.activate(
@@ -48,10 +47,18 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
                 uiKitView.bottomAnchor.constraint(equalTo:  _view.bottomAnchor)
             ])
         
-        vc.didMove(toParent: topController)
+        viewController.didMove(toParent: topController)
     }
     
     func onMethodCalled(_ call: FlutterMethodCall, _ result:@escaping FlutterResult) {
+        // Check if already disposed
+        guard !isDisposed else {
+            result(FlutterError(code: "DISPOSED",
+                                message: "View has been disposed",
+                                details: nil))
+            return
+        }
+        
         _ = call.arguments as? [String: Any]
         switch call.method {
         case "startRecording":
@@ -66,6 +73,13 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
     }
     
     func startRecording(_ result: @escaping FlutterResult) {
+        guard !isDisposed else {
+            result(FlutterError(code: "DISPOSED",
+                                message: "View has been disposed",
+                                details: nil))
+            return
+        }
+        
         guard let cameraVC = viewController as? CameraViewController else {
             result(FlutterError(code: "UNAVAILABLE",
                                 message: "Camera controller not available",
@@ -85,6 +99,13 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
     }
     
     func stopRecording(_ result: @escaping FlutterResult) {
+        guard !isDisposed else {
+            result(FlutterError(code: "DISPOSED",
+                                message: "View has been disposed",
+                                details: nil))
+            return
+        }
+        
         guard let cameraVC = viewController as? CameraViewController else {
             result(FlutterError(code: "UNAVAILABLE",
                                 message: "Camera controller not available",
@@ -93,9 +114,10 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
         }
         
         cameraVC.stopRecording { recordingUUID in
-            guard let recordingUUID = recordingUUID else { result(FlutterError(code: "STOP_RECORDING_ERROR",
-                                                                               message: "Failed to stop recording",
-                                                                               details: nil))
+            guard let recordingUUID = recordingUUID else {
+                result(FlutterError(code: "STOP_RECORDING_ERROR",
+                                   message: "Failed to stop recording",
+                                   details: nil))
                 return
             }
             result([
@@ -105,34 +127,60 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
     }
     
     func onDispose(_ result: FlutterResult) {
-        // Remove the method call handler
-        channel.setMethodCallHandler(nil)
-        
-        // Cleanup viewController if it exists
-        if let vc = viewController {
-            vc.willMove(toParent: nil)
-            vc.view.removeFromSuperview()
-            vc.removeFromParent()
-            viewController = nil
-        }
-        
+        performDisposal()
         result(nil)
     }
     
+    private func performDisposal() {
+        guard !isDisposed else { return }
+        
+        isDisposed = true
+        
+        // Remove method call handler first
+        channel.setMethodCallHandler(nil)
+        
+        // Stop any ongoing recording if applicable
+        if let cameraVC = viewController as? CameraViewController {
+            cameraVC.stopRecording { _ in
+                // Recording stopped, cleanup will continue
+            }
+        }
+        
+        // Cleanup viewController
+        cleanupViewController()
+    }
+    
+    private func cleanupViewController() {
+        guard let vc = viewController else { return }
+        
+        // Ensure cleanup happens on main thread
+        DispatchQueue.main.async {
+            // Remove from parent view controller
+            vc.willMove(toParent: nil)
+            vc.view.removeFromSuperview()
+            vc.removeFromParent()
+            
+            // Clear the reference
+            self.viewController = nil
+        }
+    }
+    
     deinit {
-        viewController?.willMove(toParent: nil)
-        viewController?.view.removeFromSuperview()
-        viewController?.removeFromParent()
-        viewController = nil
+        // Ensure disposal happens even if onDispose wasn't called
+        performDisposal()
     }
     
     func sendToFlutter(_ method: String, arguments: Any?) {
+        guard !isDisposed else { return }
+        
         DispatchQueue.main.async {
             self.channel.invokeMethod(method, arguments: arguments)
         }
     }
     
     func onRecordingCompleted(recordingUUID: String) {
+        guard !isDisposed else { return }
+        
         let arguments: [String: String] = ["recordingUUID": recordingUUID]
         sendToFlutter("onRecordingCompleted", arguments: arguments)
     }

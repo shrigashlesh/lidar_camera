@@ -6,6 +6,7 @@
 //
 import ARKit
 import CoreLocation
+import Flutter
 @available(iOS 14.0, *)
 class ARCameraRecordingManager: NSObject {
     
@@ -16,7 +17,7 @@ class ARCameraRecordingManager: NSObject {
     
     private let depthRecorder = DepthRecorder()
     // rgbRecorder will be initialized in configureSession
-    private var rgbRecorder: RGBRecorder! = nil
+    var rgbRecorder: RGBRecorder! = nil
     private let cameraInfoRecorder = CameraInfoRecorder()
     private let confidenceMapRecorder = ConfidenceMapRecorder()
     
@@ -31,6 +32,7 @@ class ARCameraRecordingManager: NSObject {
     private var colorFrameResolution: [Int] = []
     private var depthFrameResolution: [Int] = []
     private var frequency: Int?
+    
     override init() {
         super.init()
         
@@ -53,7 +55,7 @@ class ARCameraRecordingManager: NSObject {
         }
         
         print("ARCameraRecordingManager deinitialized")
-
+        
     }
     
     
@@ -153,7 +155,7 @@ class ARCameraRecordingManager: NSObject {
 
 @available(iOS 14.0, *)
 extension ARCameraRecordingManager: RecordingManager {
-  
+    
     func getSession() -> NSObject {
         return session
     }
@@ -209,7 +211,10 @@ extension ARCameraRecordingManager: RecordingManager {
     
     func stopRecording(completion: RecordingManagerCompletion?) {
         deactivateAudioSession()
-        
+        guard isRecording else {
+            print("Recording hasn't started yet.")
+            return
+        }
         sessionQueue.sync { [self] in
             print("post count: \(numFrames)")
             
@@ -237,7 +242,7 @@ extension ARCameraRecordingManager: RecordingManager {
         guard let recordingId = recordingId,let dirUrl = dirUrl else {
             return
         }
-      
+        
         let metadataPath = (dirUrl.path as NSString).appendingPathComponent((recordingId as NSString).appendingPathExtension("json")!)
         
         metadata.writeToFile(filepath: metadataPath)

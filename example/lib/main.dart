@@ -2,6 +2,7 @@ import 'dart:developer';
 import 'package:flutter/material.dart';
 import 'package:lidar_camera/lidar_camera.dart';
 import 'package:wechat_assets_picker/wechat_assets_picker.dart';
+import 'package:image/image.dart' as img;
 
 void main() {
   runApp(const MyApp());
