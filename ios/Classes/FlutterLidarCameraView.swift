@@ -54,6 +54,10 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
             startRecording(result)
         case "stopRecording":
             stopRecording(result)
+        case "startLidarRecording":
+            startLidarRecording(result)
+        case "stopLidarRecording":
+            stopLidarRecording(result)
         case "dispose":
             onDispose(result)
         default:
@@ -68,7 +72,11 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
         }
 
         cameraVC.startRecording { success in
-            result(success ? nil : FlutterError(code: "RECORDING_ERROR", message: "Failed to start recording", details: nil))
+            if success {
+                result(success)
+            } else {
+                result(FlutterError(code: "RECORDING_ERROR", message: "Failed to start recording", details: nil))
+            }
         }
     }
 
@@ -86,6 +94,40 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
             }
         }
     }
+    
+    private func startLidarRecording(_ result: @escaping FlutterResult) {
+        guard let cameraVC = viewController else {
+            result(FlutterError(code: "UNAVAILABLE", message: "Camera controller not available", details: nil))
+            return
+        }
+
+        cameraVC.startLidarRecording { lidarDataStartMs in
+            guard let lidarDataStartMs = lidarDataStartMs else {
+                result(FlutterError(code: "LIDAR_RECORDING_ERROR", message: "Failed to start lidar recording", details: nil))
+                return
+            }
+
+            // Convert CMTime to milliseconds
+            result(["lidarDataStartMs":lidarDataStartMs])
+        }
+    }
+
+
+    private func stopLidarRecording(_ result: @escaping FlutterResult) {
+        guard let cameraVC = viewController else {
+            result(FlutterError(code: "UNAVAILABLE", message: "Camera controller not available", details: nil))
+            return
+        }
+
+        cameraVC.stopLidarRecording { success in
+            if success {
+                result(success)
+            } else {
+                result(FlutterError(code: "STOP_LIDAR_RECORDING_ERROR", message: "Failed to stop lidar recording", details: nil))
+            }
+        }
+    }
+
 
     private func onDispose(_ result: FlutterResult) {
         performDisposal()

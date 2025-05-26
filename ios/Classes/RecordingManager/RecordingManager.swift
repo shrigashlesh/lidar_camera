@@ -6,8 +6,10 @@
 //
 
 import Foundation
+import AVFoundation
 
 typealias RecordingManagerCompletion = (String?) -> Void
+typealias DepthDataStartCompletion = (Int?) -> Void
 
 protocol RecordingManager {
     var isRecording: Bool { get }

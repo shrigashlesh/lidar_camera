@@ -136,7 +136,7 @@ class RGBRecorder: NSObject, Recorder {
                 
                 if let videoURL = self.assetWriter?.outputURL {
                     
-                    print("RGB video to gallery at path: \(videoURL.path)")
+                    print("RGB video saved at path: \(videoURL.path)")
                     
                     self.assetWriter = nil
                 }

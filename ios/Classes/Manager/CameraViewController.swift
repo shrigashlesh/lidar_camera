@@ -99,13 +99,12 @@ class CameraViewController: UIViewController, FlutterStreamHandler {
         previewView.backgroundColor = .black
     }
     
-    
-    func startRecording(completion: ((Bool) -> Void)? = nil) {
+    func startRecording(completion: ((Bool) -> Void)) {
         guard let recordingManager = recordingManager else {
             return
         }
         recordingManager.startRecording()
-        completion?(true)
+        completion(true)
     }
     
     func stopRecording(completion: RecordingManagerCompletion?) {
@@ -118,5 +117,21 @@ class CameraViewController: UIViewController, FlutterStreamHandler {
             }
             completion?(recordingUUID)
         })
+    }
+    
+    func startLidarRecording(completion: DepthDataStartCompletion?) {
+        guard let recordingManager = recordingManager else {
+            return
+        }
+        recordingManager.startLidarRecording(completion: completion)
+    }
+    
+    func stopLidarRecording(completion: ((Bool) -> Void)) {
+        guard let recordingManager = recordingManager else{
+            return
+        }
+        recordingManager.stopLidarRecording()
+        completion(true)
+
     }
 }

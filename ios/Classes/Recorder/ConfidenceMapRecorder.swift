@@ -103,9 +103,9 @@ class ConfidenceMapRecorder: Recorder {
     private func removeUncompressedFile() {
         do {
             try FileManager.default.removeItem(at: fileUrl!)
-            print("Uncompressed depth file \(fileUrl!.lastPathComponent) removed.")
+            print("Uncompressed confidence map file \(fileUrl!.lastPathComponent) removed.")
         } catch {
-            print("Unable to remove uncompressed depth file.")
+            print("Unable to remove uncompressed confidence map file.")
         }
     }
     

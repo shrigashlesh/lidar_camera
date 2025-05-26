@@ -148,7 +148,8 @@ class CameraView extends StatefulWidget {
 
 class _CameraViewState extends State<CameraView> {
   late LidarRecordingController lidarRecordingController;
-  bool isRecording = false;
+  bool isRecordingRGB = false;
+  bool isRecordingLidar = false;
 
   @override
   void dispose() {
@@ -161,29 +162,81 @@ class _CameraViewState extends State<CameraView> {
     return Scaffold(
       extendBodyBehindAppBar: true,
       extendBody: true,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () async {
-          if (!isRecording) {
-            setState(() {
-              isRecording = true;
-            });
-            await lidarRecordingController.startRecording();
-          } else {
-            setState(() {
-              isRecording = false;
-            });
-            final res = await lidarRecordingController.stopRecording();
-            log(res.toString());
-          }
-        },
-      ),
-      body: LidarCameraView(
-        onRecordingControllerCreated: (controller) {
-          lidarRecordingController = controller;
-          lidarRecordingController.frameStream((frame) {
-            print(frame.toString());
-          });
-        },
+      body: Column(
+        children: [
+          Expanded(
+            child: LidarCameraView(
+              onRecordingControllerCreated: (controller) {
+                lidarRecordingController = controller;
+                // lidarRecordingController.frameStream((frame) {
+                //   print(frame.toString());
+                // });
+              },
+            ),
+          ),
+          Row(
+            children: [
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    if (!isRecordingRGB) {
+                      final didStart =
+                          await lidarRecordingController.startRecording();
+                      if (didStart ?? false) {
+                        setState(() {
+                          isRecordingRGB = true;
+                        });
+                      }
+                    } else {
+                      final recordingUUID =
+                          await lidarRecordingController.stopRecording();
+                      if (recordingUUID != null) {
+                        setState(() {
+                          isRecordingRGB = false;
+                          isRecordingLidar = false;
+                        });
+                        log(recordingUUID);
+                      }
+                    }
+                  },
+                  child: Text(
+                    "${isRecordingRGB ? "Stop" : "Start"} RGB Recording",
+                  ),
+                ),
+              ),
+              const SizedBox(
+                width: 10,
+              ),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () async {
+                    if (!isRecordingLidar) {
+                      final startTimeInMs =
+                          await lidarRecordingController.startLidarRecording();
+                      if (startTimeInMs != null) {
+                        log("LIDAR INFO TIME: ${startTimeInMs.toString()}");
+                        setState(() {
+                          isRecordingLidar = true;
+                        });
+                      }
+                    } else {
+                      final didStop =
+                          await lidarRecordingController.stopLidarRecording();
+                      if (didStop ?? false) {
+                        setState(() {
+                          isRecordingLidar = false;
+                        });
+                      }
+                    }
+                  },
+                  child: Text(
+                    "${isRecordingLidar ? "Stop" : "Start"} Lidar Recording",
+                  ),
+                ),
+              ),
+            ],
+          )
+        ],
       ),
     );
   }

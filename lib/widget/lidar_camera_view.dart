@@ -64,13 +64,15 @@ class LidarRecordingController {
     _channel.invokeMethod<void>('dispose');
   }
 
-  /// Starts recording LiDAR camera data.
+  /// Starts recording RGB camera data.
   ///
-  /// Returns a [Future] that completes when recording has started.
+  /// Returns a [Future<bool>] indicating whether recording started successfully.
   /// Throws a [PlatformException] if recording fails to start.
-  Future<void> startRecording() async {
+  Future<bool?> startRecording() async {
     try {
-      await _channel.invokeMethod<void>('startRecording');
+      final result = await _channel.invokeMethod<bool>('startRecording');
+
+      return result;
     } on PlatformException catch (e) {
       throw 'Failed to start recording: ${e.message}';
     }
@@ -80,7 +82,7 @@ class LidarRecordingController {
   ///
   /// Returns a [Future] with the recording UUID.
   /// Throws a [PlatformException] if stopping the recording fails.
-  Future<String> stopRecording() async {
+  Future<String?> stopRecording() async {
     try {
       final result =
           await _channel.invokeMethod<Map<dynamic, dynamic>>('stopRecording');
@@ -91,13 +93,44 @@ class LidarRecordingController {
 
       final recordingUUID = result['recordingUUID'] as String?;
 
-      if (recordingUUID == null) {
-        throw 'Failed to stop recording: Missing path or identifier';
-      }
-
       return recordingUUID;
     } on PlatformException catch (e) {
       throw 'Failed to stop recording: ${e.message}';
+    }
+  }
+
+  /// Starts recording LiDAR lidar data.
+  ///
+  /// Returns a [Future] that completes when lidar recording has started.
+  /// Throws a [PlatformException] if lidar recording fails to start.
+  Future<int?> startLidarRecording() async {
+    try {
+      final result = await _channel
+          .invokeMethod<Map<dynamic, dynamic>>('startLidarRecording');
+
+      if (result == null) {
+        throw 'Failed to start lidar recording: No result returned';
+      }
+
+      final lidarDataStartMs = result['lidarDataStartMs'] as int?;
+
+      return lidarDataStartMs;
+    } on PlatformException catch (e) {
+      throw 'Failed to start lidar recording: ${e.message}';
+    }
+  }
+
+  /// Stops the current lidar data recording.
+  ///
+  /// Returns a [Future<bool?>] indicating whether lidar recording stopped.
+  /// Throws a [PlatformException] if stopping the lidar recording fails.
+  Future<bool?> stopLidarRecording() async {
+    try {
+      final result = await _channel.invokeMethod<bool>('stopLidarRecording');
+
+      return result;
+    } on PlatformException catch (e) {
+      throw 'Failed to stop lidar recording: ${e.message}';
     }
   }
 

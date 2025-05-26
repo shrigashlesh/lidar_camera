@@ -7,6 +7,7 @@
 import ARKit
 import CoreLocation
 import Flutter
+
 @available(iOS 14.0, *)
 class ARCameraRecordingManager: NSObject {
     
@@ -16,16 +17,20 @@ class ARCameraRecordingManager: NSObject {
     private let session = ARSession()
     
     private let depthRecorder = DepthRecorder()
-    // rgbRecorder will be initialized in configureSession
-    private var rgbRecorder: RGBRecorder? = nil
+    // both fullRgbVideoRecorders will be initialized in configureSession
+    private var fullRgbVideoRecorder: RGBRecorder? = nil
+    
     private let cameraInfoRecorder = CameraInfoRecorder()
     private let confidenceMapRecorder = ConfidenceMapRecorder()
     let rgbStreamer: RGBStreamProcessor = RGBStreamProcessor()
-
+    
     private var numFrames: Int = 0
+    private var rgbVideoStartTimeStamp: CMTime = .zero
+    private var currentTimeStamp: CMTime = .zero
     private var dirUrl: URL?
     private var recordingId: String?
-    var isRecording: Bool = false
+    var isRecordingRGBVideo: Bool = false
+    var isRecordingLidarData: Bool = false
     
     private let locationManager = CLLocationManager()
     
@@ -54,7 +59,7 @@ class ARCameraRecordingManager: NSObject {
         audioRecorderQueue.sync {
             deactivateAudioSession()
         }
-                
+        
         print("ARCameraRecordingManager deinitialized")
         
     }
@@ -150,179 +155,93 @@ class ARCameraRecordingManager: NSObject {
         
         let videoSettings: [String: Any] = [AVVideoCodecKey: AVVideoCodecType.h264, AVVideoHeightKey: NSNumber(value: colorFrameResolution[0]), AVVideoWidthKey: NSNumber(value: colorFrameResolution[1])]
         let location = Helper.getGpsLocation(locationManager: locationManager)
-        rgbRecorder = RGBRecorder(videoSettings: videoSettings, location: location)
-    }
-}
-
-@available(iOS 14.0, *)
-extension ARCameraRecordingManager: RecordingManager {
-    
-    func getSession() -> NSObject {
-        return session
-    }
-    
-    
-    func startRecording() {
-        do{
-            try activateAudioSession()
-        } catch{
-            print("Couldn't activate audio session")
-        }
-        sessionQueue.async { [self] in
-            
-            
-            numFrames = 0
-            
-            if let currentFrame = session.currentFrame {
-                cameraIntrinsic = currentFrame.camera.intrinsics
-                if let depthData = currentFrame.sceneDepth {
-                    
-                    let depthMap: CVPixelBuffer = depthData.depthMap
-                    let height = CVPixelBufferGetHeight(depthMap)
-                    let width = CVPixelBufferGetWidth(depthMap)
-                    
-                    depthFrameResolution = [height, width]
-                    
-                } else {
-                    print("Unable to get depth resolution.")
-                }
-                
-            }
-            
-            print("pre1 count: \(numFrames)")
-            recordingId = Helper.getRecordingId()
-            guard let recordingId = recordingId else {
-                return
-            }
-            dirUrl = URL(fileURLWithPath: Helper.getRecordingDataDirectoryPath(recordingId: recordingId))
-            guard let dirUrl = dirUrl else {
-                return
-            }
-            depthRecorder.prepareForRecording(dirPath: dirUrl.path, recordingId: recordingId)
-            confidenceMapRecorder.prepareForRecording(dirPath: dirUrl.path, recordingId: recordingId)
-            rgbRecorder?.prepareForRecording(dirPath: dirUrl.path, recordingId: recordingId)
-            cameraInfoRecorder.prepareForRecording(dirPath: dirUrl.path, recordingId: recordingId)
-            
-            isRecording = true
-            
-            print("pre2 count: \(numFrames)")
-        }
-        
-    }
-    
-    func stopRecording(completion: RecordingManagerCompletion?) {
-        deactivateAudioSession()
-        guard isRecording else {
-            print("Recording hasn't started yet.")
-            return
-        }
-        sessionQueue.sync { [self] in
-            print("post count: \(numFrames)")
-            
-            isRecording = false
-            
-            // Finish the recordings
-            depthRecorder.finishRecording()
-            confidenceMapRecorder.finishRecording()
-            rgbRecorder?.finishRecording()
-            cameraInfoRecorder.finishRecording()
-            
-            writeMetadataToFile()
-            completion?(recordingId)
-        }
-    }
-    
-    private func writeMetadataToFile() {
-        let cameraIntrinsicArray = cameraIntrinsic?.arrayRepresentation
-        let rgbStreamInfo = CameraStreamInfo(id: "rgb_video", encoding: "h264", frequency: frequency ?? 0, numberOfFrames: numFrames, fileExtension: "mp4", resolution: colorFrameResolution, intrinsics: cameraIntrinsicArray)
-        let depthStreamInfo = CameraStreamInfo(id: "lidar_depth_map", encoding: "float16_zlib", frequency: frequency ?? 0, numberOfFrames: numFrames, fileExtension: "depth.zlib", resolution: depthFrameResolution, intrinsics: nil)
-        let confidenceMapStreamInfo = StreamInfo(id: "confidence_map", encoding: "uint8_zlib", frequency: frequency ?? 0, numberOfFrames: numFrames, fileExtension: "confidence.zlib")
-        let cameraInfoStreamInfo = StreamInfo(id: "camera_info", encoding: "jsonl", frequency: frequency ?? 0, numberOfFrames: numFrames, fileExtension: "jsonl")
-        
-        let metadata = RecordingMetaData(streams: [rgbStreamInfo, depthStreamInfo, confidenceMapStreamInfo, cameraInfoStreamInfo], numberOfFiles: 5)
-        guard let recordingId = recordingId,let dirUrl = dirUrl else {
-            return
-        }
-        
-        let metadataPath = (dirUrl.path as NSString).appendingPathComponent((recordingId as NSString).appendingPathExtension("json")!)
-        
-        metadata.writeToFile(filepath: metadataPath)
+        fullRgbVideoRecorder = RGBRecorder(videoSettings: videoSettings, location: location)
     }
 }
 
 @available(iOS 14.0, *)
 extension ARCameraRecordingManager: ARSessionDelegate {
     
+    func getSession() -> NSObject {
+        return session
+    }
+    
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
-        // Ensure sceneDepth is available
-        guard let depthData = frame.sceneDepth else {
-            print("Failed to acquire depth data.")
-            return
-        }
-
+        
         do {
             // Copy color buffers to avoid retaining shared memory
             let colorImage = try frame.capturedImage.copy()
-
+            
             // Update preview from copy (or original if you prefer real-time latency)
             rgbStreamer.update(colorImage)
-
+            
             // Only proceed if recording
-            guard isRecording else { return }
-
-            // Get timestamp
-            let timestamp = CMTime(seconds: frame.timestamp, preferredTimescale: 1_000_000_000)
-
-            // Get and copy confidence map
-            guard let confidenceMapOriginal = depthData.confidenceMap else {
-                print("Failed to get confidenceMap.")
-                return
+            guard isRecordingRGBVideo else { return }
+            
+            let timeStamp = CMTime(seconds: frame.timestamp, preferredTimescale: 1_000_000_000)
+            if(rgbVideoStartTimeStamp == CMTime.zero){
+                rgbVideoStartTimeStamp = timeStamp
             }
             
-            // Copy depth and confidence buffers to avoid retaining shared memory
-            let depthMap = try depthData.depthMap.copy()
-            let confidenceMap = try confidenceMapOriginal.copy()
-
-            // Log and update buffers
-            print("**** @Controller: depth \(numFrames) ****")
-            depthRecorder.update(depthMap)
-
-            print("**** @Controller: confidence \(numFrames) ****")
-            confidenceMapRecorder.update(confidenceMap)
-
+            currentTimeStamp = timeStamp
+            
             print("**** @Controller: color \(numFrames) ****")
-            rgbRecorder?.update(colorImage, timestamp: timestamp)
+            fullRgbVideoRecorder?.update(colorImage, timestamp: timeStamp)
 
-            print("**** @Controller: camera info \(numFrames) ****")
-            let currentCameraInfo = CameraInfo(
-                timestamp: frame.timestamp,
-                intrinsics: frame.camera.intrinsics,
-                transform: frame.camera.transform,
-                eulerAngles: frame.camera.eulerAngles,
-                exposureDuration: frame.camera.exposureDuration
-            )
-            cameraInfoRecorder.update(currentCameraInfo)
-
+            if(isRecordingLidarData){
+               
+                // Ensure sceneDepth is available
+                guard let depthData = frame.sceneDepth else {
+                    print("Failed to acquire depth data.")
+                    return
+                }
+                // Get and copy confidence map
+                guard let confidenceMapOriginal = depthData.confidenceMap else {
+                    print("Failed to get confidenceMap.")
+                    return
+                }
+                
+                // Copy depth and confidence buffers to avoid retaining shared memory
+                let depthMap = try depthData.depthMap.copy()
+                let confidenceMap = try confidenceMapOriginal.copy()
+                
+                // Log and update buffers
+                print("**** @Controller: depth \(numFrames) ****")
+                depthRecorder.update(depthMap)
+                
+                print("**** @Controller: confidence \(numFrames) ****")
+                confidenceMapRecorder.update(confidenceMap)
+                
+                print("**** @Controller: camera info \(numFrames) ****")
+                let currentCameraInfo = CameraInfo(
+                    timestamp: frame.timestamp,
+                    intrinsics: frame.camera.intrinsics,
+                    transform: frame.camera.transform,
+                    eulerAngles: frame.camera.eulerAngles,
+                    exposureDuration: frame.camera.exposureDuration
+                )
+                cameraInfoRecorder.update(currentCameraInfo)
+            }
+            
             numFrames += 1
-
+            
         } catch {
             print("Failed to copy pixel buffers: \(error)")
         }
     }
-
+    
 }
 
 @available(iOS 14.0, *)
 extension ARCameraRecordingManager: AVCaptureAudioDataOutputSampleBufferDelegate {
     func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        if !isRecording {
+        if !isRecordingRGBVideo {
             return
         }
         if output == audioDataOutput {
-            rgbRecorder?.updateAudioSample(sampleBuffer)
+            fullRgbVideoRecorder?.updateAudioSample(sampleBuffer)
         }
     }
-    
     
     func activateAudioSession() throws {
         do {
@@ -363,5 +282,155 @@ extension ARCameraRecordingManager: AVCaptureAudioDataOutputSampleBufferDelegate
         if(audioCaptureSession.isRunning){
             audioCaptureSession.stopRunning()
         }
+    }
+}
+
+
+@available(iOS 14.0, *)
+extension ARCameraRecordingManager {
+
+    /// Helper to safely unwrap the current recording ID and directory URL.
+    /// Returns a tuple (recordingId, dirUrl) or nil if unavailable.
+    private func recordingResources() -> (recordingId: String, dirUrl: URL)? {
+        guard let recordingId = recordingId,
+              let dirUrl = dirUrl else {
+            print("Recording resources unavailable")
+            return nil
+        }
+        return (recordingId, dirUrl)
+    }
+    
+    /// Starts the RGB video recording session.
+    /// - Activates the audio session.
+    /// - Initializes frame count and recording ID.
+    /// - Prepares the RGB video recorder for recording in the appropriate directory.
+    /// - Runs asynchronously on the session queue.
+    func startRecording() {
+        do {
+            try activateAudioSession()
+        } catch {
+            print("Couldn't activate audio session")
+        }
+        
+        sessionQueue.async { [weak self] in
+            guard let self = self else { return }
+            self.numFrames = 0
+            self.rgbVideoStartTimeStamp = .zero
+            print("pre1 count: \(self.numFrames)")
+            
+            self.recordingId = Helper.getRecordingId()
+            guard let recordingId = self.recordingId else {
+                print("Failed to get recording ID")
+                return
+            }
+            self.dirUrl = URL(fileURLWithPath: Helper.getRecordingDataDirectoryPath(recordingId: recordingId))
+            guard let dirUrl = self.dirUrl else {
+                print("Failed to get recording directory URL")
+                return
+            }
+            
+            self.fullRgbVideoRecorder?.prepareForRecording(dirPath: dirUrl.path, recordingId: recordingId)
+            self.isRecordingRGBVideo = true
+        }
+    }
+    
+    /// Stops the RGB video recording session.
+    /// - Deactivates the audio session.
+    /// - Stops RGB recording if active.
+    /// - If LiDAR data recording is active, finishes those recordings as well.
+    /// - Writes metadata file summarizing the recording.
+    /// - Executes an optional completion handler with the recording ID.
+    func stopRecording(completion: RecordingManagerCompletion?) {
+        deactivateAudioSession()
+        
+        guard isRecordingRGBVideo else {
+            print("Recording hasn't started yet.")
+            return
+        }
+        
+        sessionQueue.async { [weak self] in
+            guard let self = self else { return }
+            print("post count: \(self.numFrames)")
+            
+            self.isRecordingRGBVideo = false
+            self.fullRgbVideoRecorder?.finishRecording()
+            
+            if self.isRecordingLidarData {
+                self.stopLidarRecording()
+            }
+            
+            self.writeMetadataToFile()
+            completion?(self.recordingId)
+        }
+    }
+    
+    /// Starts LiDAR depth data recording.
+    /// - Requires RGB recording to be active.
+    /// - Prepares depth, confidence map, and camera info recorders.
+    /// - Marks LiDAR data recording as active.
+    /// - Calls the provided completion closure with the current frame timestamp if available, else nil.
+    func startLidarRecording(completion: DepthDataStartCompletion? = nil) {
+        guard isRecordingRGBVideo else {
+            print("Recording session hasn't started yet.")
+            return
+        }
+        
+        sessionQueue.async { [weak self] in
+            guard let self = self,
+                  let (recordingId, dirUrl) = self.recordingResources() else {
+                return
+            }
+            
+            self.depthRecorder.prepareForRecording(dirPath: dirUrl.path, recordingId: recordingId)
+            self.confidenceMapRecorder.prepareForRecording(dirPath: dirUrl.path, recordingId: recordingId)
+            self.cameraInfoRecorder.prepareForRecording(dirPath: dirUrl.path, recordingId: recordingId)
+            self.isRecordingLidarData = true
+            
+
+            // 🔹 Compute offset relative to RGB start
+            let offset = CMTimeSubtract(self.currentTimeStamp, self.rgbVideoStartTimeStamp)
+            let offsetMillis = Int((Double(offset.value) / Double(offset.timescale)) * 1000)
+            completion?(offsetMillis)
+        }
+    }
+    
+    /// Stops LiDAR depth data recording.
+    /// - Finishes all LiDAR-related recordings if active.
+    /// - Sets the LiDAR recording flag to false.
+    func stopLidarRecording() {
+        guard isRecordingLidarData else {
+            print("Lidar data Recording hasn't started yet.")
+            return
+        }
+        
+        sessionQueue.async { [weak self] in
+            guard let self = self else { return }
+            self.isRecordingLidarData = false
+            self.depthRecorder.finishRecording()
+            self.confidenceMapRecorder.finishRecording()
+            self.cameraInfoRecorder.finishRecording()
+        }
+    }
+    
+    /// Writes recording metadata to a JSON file.
+    /// - Includes stream info for RGB video, LiDAR depth map, confidence map, and camera info.
+    /// - Metadata file is saved inside the recording directory.
+    private func writeMetadataToFile() {
+        guard let (recordingId, dirUrl) = recordingResources() else { return }
+        
+        let intrinsicArray = cameraIntrinsic?.arrayRepresentation
+        let frequencyValue = frequency ?? 0
+        
+        let streams: [Any] = [
+            CameraStreamInfo(id: "rgb_video", encoding: "h264", frequency: frequencyValue, numberOfFrames: numFrames, fileExtension: "mp4", resolution: colorFrameResolution, intrinsics: intrinsicArray),
+            CameraStreamInfo(id: "lidar_depth_map", encoding: "float16_zlib", frequency: frequencyValue, numberOfFrames: numFrames, fileExtension: "depth.zlib", resolution: depthFrameResolution, intrinsics: nil),
+            StreamInfo(id: "confidence_map", encoding: "uint8_zlib", frequency: frequencyValue, numberOfFrames: numFrames, fileExtension: "confidence.zlib"),
+            StreamInfo(id: "camera_info", encoding: "jsonl", frequency: frequencyValue, numberOfFrames: numFrames, fileExtension: "jsonl")
+        ]
+        
+        let metadata = RecordingMetaData(streams: streams as! [StreamInfo], numberOfFiles: 5)
+        
+        let metadataPath = dirUrl.appendingPathComponent(recordingId).appendingPathExtension("json").path
+        metadata.writeToFile(filepath: metadataPath)
     }
 }
