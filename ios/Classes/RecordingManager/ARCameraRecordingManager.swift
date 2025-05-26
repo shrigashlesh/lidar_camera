@@ -254,43 +254,62 @@ extension ARCameraRecordingManager: RecordingManager {
 extension ARCameraRecordingManager: ARSessionDelegate {
     
     func session(_ session: ARSession, didUpdate frame: ARFrame) {
-        guard let depthData = frame.sceneDepth  else {
+        // Ensure sceneDepth is available
+        guard let depthData = frame.sceneDepth else {
             print("Failed to acquire depth data.")
             return
         }
-        
-        let depthMap: CVPixelBuffer = depthData.depthMap
-        let colorImage: CVPixelBuffer = frame.capturedImage
-        rgbStreamer.update(colorImage)
-        if !isRecording {
-            return
+
+        do {
+            // Copy color buffers to avoid retaining shared memory
+            let colorImage = try frame.capturedImage.copy()
+
+            // Update preview from copy (or original if you prefer real-time latency)
+            rgbStreamer.update(colorImage)
+
+            // Only proceed if recording
+            guard isRecording else { return }
+
+            // Get timestamp
+            let timestamp = CMTime(seconds: frame.timestamp, preferredTimescale: 1_000_000_000)
+
+            // Get and copy confidence map
+            guard let confidenceMapOriginal = depthData.confidenceMap else {
+                print("Failed to get confidenceMap.")
+                return
+            }
+            
+            // Copy depth and confidence buffers to avoid retaining shared memory
+            let depthMap = try depthData.depthMap.copy()
+            let confidenceMap = try confidenceMapOriginal.copy()
+
+            // Log and update buffers
+            print("**** @Controller: depth \(numFrames) ****")
+            depthRecorder.update(depthMap)
+
+            print("**** @Controller: confidence \(numFrames) ****")
+            confidenceMapRecorder.update(confidenceMap)
+
+            print("**** @Controller: color \(numFrames) ****")
+            rgbRecorder?.update(colorImage, timestamp: timestamp)
+
+            print("**** @Controller: camera info \(numFrames) ****")
+            let currentCameraInfo = CameraInfo(
+                timestamp: frame.timestamp,
+                intrinsics: frame.camera.intrinsics,
+                transform: frame.camera.transform,
+                eulerAngles: frame.camera.eulerAngles,
+                exposureDuration: frame.camera.exposureDuration
+            )
+            cameraInfoRecorder.update(currentCameraInfo)
+
+            numFrames += 1
+
+        } catch {
+            print("Failed to copy pixel buffers: \(error)")
         }
-        
-        let timestamp: CMTime = CMTime(seconds: frame.timestamp, preferredTimescale: 1_000_000_000)
-        guard let confidenceMap = depthData.confidenceMap else {
-            print("Failed to get confidenceMap.")
-            return
-        }
-        print("**** @Controller: depth \(numFrames) ****")
-        depthRecorder.update(depthMap)
-        
-        print("**** @Controller: confidence \(numFrames) ****")
-        confidenceMapRecorder.update(confidenceMap)
-        
-        print("**** @Controller: color \(numFrames) ****")
-        rgbRecorder?.update(colorImage, timestamp: timestamp)
-        
-        print("**** @Controller: camera info \(numFrames) ****")
-        
-        let currentCameraInfo = CameraInfo(timestamp: frame.timestamp,
-                                           intrinsics: frame.camera.intrinsics,
-                                           transform: frame.camera.transform,
-                                           eulerAngles: frame.camera.eulerAngles,
-                                           exposureDuration: frame.camera.exposureDuration)
-        cameraInfoRecorder.update(currentCameraInfo)
-        
-        numFrames += 1
     }
+
 }
 
 @available(iOS 14.0, *)
