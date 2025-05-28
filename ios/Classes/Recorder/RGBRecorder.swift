@@ -11,9 +11,7 @@ import Photos
 
 class RGBRecorder: NSObject, Recorder {
     typealias T = CVPixelBuffer
-    
-    private let rgbRecorderQueue = DispatchQueue(label: "rgb recorder queue")
-    
+
     // AVAssetWriter components for video recording.
     private var assetWriter: AVAssetWriter?
     private var assetWriterVideoInput: AVAssetWriterInput?
@@ -22,10 +20,11 @@ class RGBRecorder: NSObject, Recorder {
     private var videoSettings: [String: Any]
     
     private var count: Int32 = 0
-    private var location: CLLocation? = nil
-    init(videoSettings: [String: Any], location: CLLocation?) {
+    private let rgbRecorderQueue: DispatchQueue
+    
+    init(videoSettings: [String: Any], queueLabel: String) {
         self.videoSettings = videoSettings
-        self.location = location
+        self.rgbRecorderQueue = DispatchQueue(label: queueLabel)
     }
     
     deinit{
@@ -34,10 +33,15 @@ class RGBRecorder: NSObject, Recorder {
     
     func prepareForRecording(dirPath: String, recordingId: String, fileExtension: String = "mp4") {
         rgbRecorderQueue.async {
-            
             self.count = 0
-            let outputFilePath = (dirPath as NSString).appendingPathComponent((recordingId as NSString).appendingPathExtension(fileExtension)!)
+            
+            let label = self.rgbRecorderQueue.label
+            let suffix = label.contains("trimmed") ? "_trimmed" : ""
+            
+            let fileName = (recordingId + suffix as NSString).appendingPathExtension(fileExtension)!
+            let outputFilePath = (dirPath as NSString).appendingPathComponent(fileName)
             let outputFileUrl = URL(fileURLWithPath: outputFilePath)
+            
             guard let assetWriter = try? AVAssetWriter(url: outputFileUrl, fileType: .mp4) else {
                 print("Failed to create AVAssetWriter.")
                 return
@@ -48,7 +52,7 @@ class RGBRecorder: NSObject, Recorder {
             let assetWriterInputPixelBufferAdaptor = AVAssetWriterInputPixelBufferAdaptor(assetWriterInput: assetWriterVideoInput, sourcePixelBufferAttributes: nil)
             
             assetWriterVideoInput.expectsMediaDataInRealTime = true
-            assetWriterVideoInput.transform = CGAffineTransform(rotationAngle: .pi/2)
+            assetWriterVideoInput.transform = CGAffineTransform(rotationAngle: .pi / 2)
             
             assetWriter.add(assetWriterVideoInput)
             
@@ -68,17 +72,17 @@ class RGBRecorder: NSObject, Recorder {
             self.assetWriterVideoInput = assetWriterVideoInput
             self.assetWriterAudioInput = assetAudioWriterInput
             self.assetWriterInputPixelBufferAdaptor = assetWriterInputPixelBufferAdaptor
-            
         }
-        
     }
+
     
     func update(_ buffer: CVPixelBuffer, timestamp: CMTime?) {
         
         guard let timestamp = timestamp else {
             return
         }
-        
+        let label = self.rgbRecorderQueue.label
+
         rgbRecorderQueue.async {
             
             guard let assetWriter = self.assetWriter else {
@@ -86,7 +90,7 @@ class RGBRecorder: NSObject, Recorder {
                 return
             }
             
-            print("Saving video frame \(self.count) ...")
+            print("Saving \(label) video frame \(self.count) ...")
             
             if assetWriter.status == .unknown {
                 

@@ -19,12 +19,15 @@ class ARCameraRecordingManager: NSObject {
     private let depthRecorder = DepthRecorder()
     // both fullRgbVideoRecorders will be initialized in configureSession
     private var fullRgbVideoRecorder: RGBRecorder? = nil
-    
+    private var trimmedRgbVideoRecorder: RGBRecorder? = nil
+
     private let cameraInfoRecorder = CameraInfoRecorder()
     private let confidenceMapRecorder = ConfidenceMapRecorder()
     let rgbStreamer: RGBStreamProcessor = RGBStreamProcessor()
     
-    private var numFrames: Int = 0
+    private var numRgbFrames: Int = 0
+    private var numLidarFrames: Int = 0
+
     private var rgbVideoStartTimeStamp: CMTime = .zero
     private var currentTimeStamp: CMTime = .zero
     private var dirUrl: URL?
@@ -32,7 +35,6 @@ class ARCameraRecordingManager: NSObject {
     var isRecordingRGBVideo: Bool = false
     var isRecordingLidarData: Bool = false
     
-    private let locationManager = CLLocationManager()
     
     private var cameraIntrinsic: simd_float3x3?
     private var colorFrameResolution: [Int] = []
@@ -41,9 +43,7 @@ class ARCameraRecordingManager: NSObject {
     
     override init() {
         super.init()
-        
-        locationManager.requestWhenInUseAuthorization()
-        
+                
         sessionQueue.async {
             self.configureSession()
         }
@@ -154,8 +154,8 @@ class ARCameraRecordingManager: NSObject {
         colorFrameResolution = [Int(imageResolution.height), Int(imageResolution.width)]
         
         let videoSettings: [String: Any] = [AVVideoCodecKey: AVVideoCodecType.h264, AVVideoHeightKey: NSNumber(value: colorFrameResolution[0]), AVVideoWidthKey: NSNumber(value: colorFrameResolution[1])]
-        let location = Helper.getGpsLocation(locationManager: locationManager)
-        fullRgbVideoRecorder = RGBRecorder(videoSettings: videoSettings, location: location)
+        fullRgbVideoRecorder = RGBRecorder(videoSettings: videoSettings, queueLabel: "rgb recorder queue full")
+        trimmedRgbVideoRecorder = RGBRecorder(videoSettings: videoSettings, queueLabel: "rgb recorder queue trimmed")
     }
 }
 
@@ -174,7 +174,7 @@ extension ARCameraRecordingManager: ARSessionDelegate {
             
             // Update preview from copy (or original if you prefer real-time latency)
             rgbStreamer.update(colorImage)
-            
+
             // Only proceed if recording
             guard isRecordingRGBVideo else { return }
             
@@ -185,8 +185,9 @@ extension ARCameraRecordingManager: ARSessionDelegate {
             
             currentTimeStamp = timeStamp
             
-            print("**** @Controller: color \(numFrames) ****")
+            print("**** @Controller: full rgb \(numRgbFrames) ****")
             fullRgbVideoRecorder?.update(colorImage, timestamp: timeStamp)
+            numRgbFrames += 1
 
             if(isRecordingLidarData){
                
@@ -205,14 +206,16 @@ extension ARCameraRecordingManager: ARSessionDelegate {
                 let depthMap = try depthData.depthMap.copy()
                 let confidenceMap = try confidenceMapOriginal.copy()
                 
-                // Log and update buffers
-                print("**** @Controller: depth \(numFrames) ****")
+                print("**** @Controller: trimmed rgb \(numLidarFrames) ****")
+                trimmedRgbVideoRecorder?.update(colorImage, timestamp: timeStamp)
+                
+                print("**** @Controller: depth \(numLidarFrames) ****")
                 depthRecorder.update(depthMap)
                 
-                print("**** @Controller: confidence \(numFrames) ****")
+                print("**** @Controller: confidence \(numLidarFrames) ****")
                 confidenceMapRecorder.update(confidenceMap)
                 
-                print("**** @Controller: camera info \(numFrames) ****")
+                print("**** @Controller: camera info \(numLidarFrames) ****")
                 let currentCameraInfo = CameraInfo(
                     timestamp: frame.timestamp,
                     intrinsics: frame.camera.intrinsics,
@@ -221,9 +224,9 @@ extension ARCameraRecordingManager: ARSessionDelegate {
                     exposureDuration: frame.camera.exposureDuration
                 )
                 cameraInfoRecorder.update(currentCameraInfo)
+                numLidarFrames += 1
             }
             
-            numFrames += 1
             
         } catch {
             print("Failed to copy pixel buffers: \(error)")
@@ -314,10 +317,12 @@ extension ARCameraRecordingManager {
         
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
-            self.numFrames = 0
+            self.numRgbFrames = 0
+            self.numLidarFrames = 0
+
             self.rgbVideoStartTimeStamp = .zero
-            print("pre1 count: \(self.numFrames)")
-            
+            print("pre count: RGB FRAMES\(self.numRgbFrames), LIDAR FRAMES \(self.numRgbFrames)")
+
             self.recordingId = Helper.getRecordingId()
             guard let recordingId = self.recordingId else {
                 print("Failed to get recording ID")
@@ -350,7 +355,7 @@ extension ARCameraRecordingManager {
         
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
-            print("post count: \(self.numFrames)")
+            print("post count: RGB FRAMES\(self.numRgbFrames), LIDAR FRAMES \(self.numLidarFrames)")
             
             self.isRecordingRGBVideo = false
             self.fullRgbVideoRecorder?.finishRecording()
@@ -380,7 +385,7 @@ extension ARCameraRecordingManager {
                   let (recordingId, dirUrl) = self.recordingResources() else {
                 return
             }
-            
+            self.trimmedRgbVideoRecorder?.prepareForRecording(dirPath: dirUrl.path, recordingId: recordingId)
             self.depthRecorder.prepareForRecording(dirPath: dirUrl.path, recordingId: recordingId)
             self.confidenceMapRecorder.prepareForRecording(dirPath: dirUrl.path, recordingId: recordingId)
             self.cameraInfoRecorder.prepareForRecording(dirPath: dirUrl.path, recordingId: recordingId)
@@ -406,6 +411,7 @@ extension ARCameraRecordingManager {
         sessionQueue.async { [weak self] in
             guard let self = self else { return }
             self.isRecordingLidarData = false
+            self.trimmedRgbVideoRecorder?.finishRecording()
             self.depthRecorder.finishRecording()
             self.confidenceMapRecorder.finishRecording()
             self.cameraInfoRecorder.finishRecording()
@@ -422,10 +428,11 @@ extension ARCameraRecordingManager {
         let frequencyValue = frequency ?? 0
         
         let streams: [Any] = [
-            CameraStreamInfo(id: "rgb_video", encoding: "h264", frequency: frequencyValue, numberOfFrames: numFrames, fileExtension: "mp4", resolution: colorFrameResolution, intrinsics: intrinsicArray),
-            CameraStreamInfo(id: "lidar_depth_map", encoding: "float16_zlib", frequency: frequencyValue, numberOfFrames: numFrames, fileExtension: "depth.zlib", resolution: depthFrameResolution, intrinsics: nil),
-            StreamInfo(id: "confidence_map", encoding: "uint8_zlib", frequency: frequencyValue, numberOfFrames: numFrames, fileExtension: "confidence.zlib"),
-            StreamInfo(id: "camera_info", encoding: "jsonl", frequency: frequencyValue, numberOfFrames: numFrames, fileExtension: "jsonl")
+            CameraStreamInfo(id: "rgb_video", encoding: "h264", frequency: frequencyValue, numberOfFrames: numRgbFrames, fileExtension: "mp4", resolution: colorFrameResolution, intrinsics: intrinsicArray),
+            CameraStreamInfo(id: "rgb_video_trimmed", encoding: "h264", frequency: frequencyValue, numberOfFrames: numLidarFrames, fileExtension: "mp4", resolution: colorFrameResolution, intrinsics: intrinsicArray),
+            CameraStreamInfo(id: "lidar_depth_map", encoding: "float16_zlib", frequency: frequencyValue, numberOfFrames: numLidarFrames, fileExtension: "depth.zlib", resolution: depthFrameResolution, intrinsics: nil),
+            StreamInfo(id: "confidence_map", encoding: "uint8_zlib", frequency: frequencyValue, numberOfFrames: numLidarFrames, fileExtension: "confidence.zlib"),
+            StreamInfo(id: "camera_info", encoding: "jsonl", frequency: frequencyValue, numberOfFrames: numLidarFrames, fileExtension: "jsonl")
         ]
         
         let metadata = RecordingMetaData(streams: streams as! [StreamInfo], numberOfFiles: 5)

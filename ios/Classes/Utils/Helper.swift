@@ -4,24 +4,10 @@
 //
 //  Created by Shrig Solutions on 26/09/2024.
 //
-import CoreLocation
 import Foundation
 import UIKit
 
 struct Helper {
-    
-    static func getGpsLocation(locationManager: CLLocationManager) -> CLLocation? {
-            
-        // Use the instance method to get the authorization status
-        let authorizationStatus = locationManager.authorizationStatus
-        if authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways {
-            if let location = locationManager.location {
-                return location
-            }
-        }
-        return nil
-    }
-
     
     static func getRecordingId() -> String {
         let dateFormatter = DateFormatter()
