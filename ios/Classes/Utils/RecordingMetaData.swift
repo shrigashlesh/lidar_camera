@@ -51,7 +51,7 @@ class CameraStreamInfo: StreamInfo {
         try super.encode(to: encoder)
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(resolution, forKey: .resolution)
-        try container.encode(intrinsics, forKey: .intrinsics)
+        try container.encodeIfPresent(intrinsics, forKey: .intrinsics)
     }
     
     enum CodingKeys: String, CodingKey {
@@ -65,9 +65,8 @@ class RecordingMetaData: Encodable {
     
     private var device: DeviceInfo
     private var streams: [StreamInfo]
-    private var numberOfFiles: Int
     
-    init(streams: [StreamInfo], numberOfFiles: Int) {
+    init(streams: [StreamInfo]) {
         
         let deviceId = UIDevice.current.identifierForVendor?.uuidString
         let modelName = Helper.getDeviceModelCode()
@@ -76,7 +75,6 @@ class RecordingMetaData: Encodable {
         device = .init(id: deviceId!, type: modelName, name: deviceName)
         
         self.streams = streams
-        self.numberOfFiles = numberOfFiles
     }
     
     func writeToFile(filepath: String) {
