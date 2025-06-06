@@ -2,11 +2,11 @@ import Flutter
 import UIKit
 
 class FlutterLidarCameraView: NSObject, FlutterPlatformView {
-    
+
     private var _view: UIView
     private weak var viewController: CameraViewController?
     private let channel: FlutterMethodChannel
-
+    private var eventChannel: FlutterEventChannel?
     init(
         frame: CGRect,
         viewIdentifier viewId: Int64,
@@ -18,6 +18,9 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
         super.init()
         createNativeView(binaryMessenger: messenger)
         channel.setMethodCallHandler(handleMethodCall)
+        let eventChannelName = "lidar/stream"
+        self.eventChannel = FlutterEventChannel(name: eventChannelName, binaryMessenger: messenger)
+        self.eventChannel?.setStreamHandler(self)
     }
 
     func view() -> UIView {
@@ -29,7 +32,7 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
             return
         }
 
-        let vc = CameraViewController(messenger: messenger)
+        let vc = CameraViewController()
         self.viewController = vc
 
         let cameraView = vc.view!
@@ -136,6 +139,8 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
 
     private func performDisposal() {
         channel.setMethodCallHandler(nil)
+        eventChannel?.setStreamHandler(nil)
+        eventChannel = nil
 
         if let vc = viewController {
             vc.cleanup()
@@ -160,4 +165,23 @@ class FlutterLidarCameraView: NSObject, FlutterPlatformView {
         performDisposal()
         print("FlutterLidarCameraView deinitialized")
     }
+}
+
+// MARK: - FlutterStreamHandler
+extension FlutterLidarCameraView: FlutterStreamHandler{
+    func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
+        guard let cameraVC = viewController else {
+            return nil
+        }
+        
+        guard let recordingManager = cameraVC.recordingManager else {
+            return nil
+        }
+        recordingManager.rgbStreamer.setEventSink(events)
+        return nil
+    }
+    
+    func onCancel(withArguments arguments: Any?) -> FlutterError? {
+           return nil
+       }
 }

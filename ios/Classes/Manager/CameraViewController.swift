@@ -3,36 +3,18 @@ import RealityKit
 import UIKit
 import Flutter
 
-class CameraViewController: UIViewController, FlutterStreamHandler {
+class CameraViewController: UIViewController {
     
-    private var recordingManager: ARCameraRecordingManager?
+    var recordingManager: ARCameraRecordingManager?
     
     var arView: ARView?
-    private weak var messenger: FlutterBinaryMessenger?
-    private var eventChannel: FlutterEventChannel?
     
-    init(messenger: FlutterBinaryMessenger?) {
-        self.messenger = messenger
+    init() {
         super.init(nibName: nil, bundle: nil)
-        setupEventChannel()
     }
     
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
-    }
-    
-    private func setupEventChannel() {
-        guard let messenger = messenger else { return }
-        eventChannel = FlutterEventChannel(name: "lidar/stream", binaryMessenger: messenger)
-        eventChannel?.setStreamHandler(self)
-    }
-    
-    // MARK: - FlutterStreamHandler
-    
-    func onListen(withArguments arguments: Any?, eventSink events: @escaping FlutterEventSink) -> FlutterError? {
-        recordingManager?.rgbStreamer.startStreaming(eventSink: events)
-        // You can start sending events now
-        return nil
     }
     
     func onCancel(withArguments arguments: Any?) -> FlutterError? {
@@ -44,12 +26,8 @@ class CameraViewController: UIViewController, FlutterStreamHandler {
         arView?.scene.anchors.removeAll()
         arView?.removeFromSuperview()
         arView = nil
-        eventChannel?.setStreamHandler(nil)  // Break retain cycle
-        eventChannel = nil
-        messenger = nil
     }
 
-    
     deinit {
         cleanup()
         print("CameraViewController deinitialized")
