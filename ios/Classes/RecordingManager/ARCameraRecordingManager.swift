@@ -233,6 +233,10 @@ extension ARCameraRecordingManager: ARSessionDelegate {
         }
     }
     
+    func session(_ session: ARSession, didFailWithError error: Error) {
+        print("ARSession failed with error: \(error.localizedDescription)")
+    }
+    
 }
 
 @available(iOS 14.0, *)

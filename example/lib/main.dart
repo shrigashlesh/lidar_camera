@@ -169,7 +169,7 @@ class _CameraViewState extends State<CameraView> {
               onRecordingControllerCreated: (controller) {
                 lidarRecordingController = controller;
                 lidarRecordingController.frameStream((frame) {
-                  print(frame.toString());
+                  log(frame.toString());
                 });
               },
             ),

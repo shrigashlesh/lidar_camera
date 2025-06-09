@@ -58,6 +58,9 @@ class LidarRecordingController {
   StringResultHandler? onError;
   StreamSubscription? _streamSubscription;
 
+  /// Call this to wait until the native side is fully initialized.
+  final Completer<void> _initialized = Completer<void>();
+
   void dispose() {
     _streamSubscription?.cancel();
     _streamSubscription = null;
@@ -138,8 +141,14 @@ class LidarRecordingController {
   ///
   /// The [onData] callback provides a [LidarRgbFrame] frame.
   /// Call this after the controller is created to start receiving frames.
-  void frameStream(void Function(LidarRgbFrame frame) onData) {
+  Future<void> frameStream(void Function(LidarRgbFrame frame) onData) async {
+    // Wait for native side to be ready
+    await _initialized.future;
+
+    // Cancel any existing subscription
     _streamSubscription?.cancel();
+
+    // Set up the stream with proper error handling
     _streamSubscription = _eventChannel.receiveBroadcastStream().listen(
       (event) {
         try {
@@ -148,7 +157,7 @@ class LidarRecordingController {
             onData(frame);
           }
         } catch (e) {
-          debugPrint('Error parsing CameraFrame: $e');
+          debugPrint('Error parsing LidarRgbFrame: $e');
         }
       },
       onError: (error) {
@@ -157,20 +166,18 @@ class LidarRecordingController {
     );
   }
 
-  Future<void> _platformCallHandler(MethodCall call) {
+  Future<void> _platformCallHandler(MethodCall call) async {
     try {
       switch (call.method) {
         case 'onError':
-          if (onError != null) {
-            onError!(call.arguments);
-            debugPrint(call.arguments);
-          }
+          onError?.call(call.arguments);
           break;
-        default:
+        case 'onViewInitialized':
+          if (!_initialized.isCompleted) _initialized.complete();
+          break;
       }
     } catch (e) {
-      debugPrint(e.toString());
+      debugPrint('Platform call error: $e');
     }
-    return Future.value();
   }
 }

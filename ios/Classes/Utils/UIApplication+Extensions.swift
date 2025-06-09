@@ -9,17 +9,23 @@ import Foundation
 
 extension UIApplication {
     var keyWindow: UIWindow? {
-           // Get connected scenes
-           return self.connectedScenes
-               // Keep only active scenes, onscreen and visible to the user
-               .filter { $0.activationState == .foregroundActive }
-               // Keep only the first `UIWindowScene`
-               .first(where: { $0 is UIWindowScene })
-               // Get its associated windows
-               .flatMap({ $0 as? UIWindowScene })?.windows
-               // Finally, keep only the key window
-               .first(where: \.isKeyWindow)
-    }
+            // For iOS 15.0 and later, use UIWindowScene.keyWindow
+            if #available(iOS 15.0, *) {
+                return self.connectedScenes
+                    .compactMap { $0 as? UIWindowScene }
+                    .filter { $0.activationState == .foregroundActive }
+                    .first?
+                    .keyWindow
+            } else {
+                // Fallback for iOS 14 and earlier
+                return self.connectedScenes
+                    .filter { $0.activationState == .foregroundActive }
+                    .compactMap { $0 as? UIWindowScene }
+                    .first?
+                    .windows
+                    .first(where: \.isKeyWindow)
+            }
+        }
     
     var keyWindowPresentedController: UIViewController? {
         var viewController = self.keyWindow?.rootViewController
@@ -45,4 +51,44 @@ extension UIApplication {
         return viewController
     }
     
+    
+    /// Executes a closure when the key window's view controller is ready
+    /// - Parameters:
+    ///   - maxRetries: Maximum number of retry attempts (default: 10)
+    ///   - delay: Delay between retries in seconds (default: 0.1)
+    ///   - action: The closure to execute when view controller is ready
+    func executeWhenViewControllerReady(
+        maxRetries: Int = 10,
+        delay: TimeInterval = 0.1,
+        action: @escaping () -> Void
+    ) {
+        executeWhenViewControllerReady(
+            retriesLeft: maxRetries,
+            delay: delay,
+            action: action
+        )
+    }
+    
+    private func executeWhenViewControllerReady(
+        retriesLeft: Int,
+        delay: TimeInterval,
+        action: @escaping () -> Void
+    ) {
+        // Check if view controller is available
+        if keyWindowPresentedController != nil {
+            action()
+        } else if retriesLeft > 0 {
+            // Retry after delay
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) {
+                self.executeWhenViewControllerReady(
+                    retriesLeft: retriesLeft - 1,
+                    delay: delay,
+                    action: action
+                )
+            }
+        } else {
+            // Max retries reached - this will trigger the error handling in the calling code
+            print("Failed to get view controller after maximum retries")
+        }
+    }
 }

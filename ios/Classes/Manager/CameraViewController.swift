@@ -6,8 +6,10 @@ import Flutter
 class CameraViewController: UIViewController {
     
     var recordingManager: ARCameraRecordingManager?
-    
     var arView: ARView?
+    
+    // Add delegate for initialization callback
+    weak var initializationDelegate: CameraInitializationDelegate?
     
     init() {
         super.init(nibName: nil, bundle: nil)
@@ -47,17 +49,28 @@ class CameraViewController: UIViewController {
     private func initRecordingManagerAndPerformRecordingModeRelatedSetup() {
         if #available(iOS 14.0, *) {
             recordingManager = ARCameraRecordingManager()
-            let session = recordingManager!.getSession() as! ARSession
+            guard let recordingManager = recordingManager else {
+                print("Failed to create ARCameraRecordingManager")
+                initializationDelegate?.cameraDidInitialize(success: false)
+                return
+            }
+            
+            let session = recordingManager.getSession() as! ARSession
             arView = ARView()
             guard let arView = arView else {
                 print("Error: arView is not initialized yet")
+                initializationDelegate?.cameraDidInitialize(success: false)
                 return
             }
             
             arView.session = session
             setupPreviewView(previewView: arView)
+            
+            // Notify delegate that initialization is complete
+            initializationDelegate?.cameraDidInitialize(success: true)
         } else {
             print("AR camera only available for iOS 14.0 or newer.")
+            initializationDelegate?.cameraDidInitialize(success: false)
         }
     }
     
@@ -79,6 +92,7 @@ class CameraViewController: UIViewController {
     
     func startRecording(completion: ((Bool) -> Void)) {
         guard let recordingManager = recordingManager else {
+            completion(false)
             return
         }
         recordingManager.startRecording()
@@ -86,30 +100,29 @@ class CameraViewController: UIViewController {
     }
     
     func stopRecording(completion: RecordingManagerCompletion?) {
-        guard let recordingManager = recordingManager else{
+        guard let recordingManager = recordingManager else {
+            completion?(nil)
             return
         }
         recordingManager.stopRecording(completion: { recordingUUID in
-            guard let recordingUUID = recordingUUID else {
-                return
-            }
             completion?(recordingUUID)
         })
     }
     
     func startLidarRecording(completion: DepthDataStartCompletion?) {
         guard let recordingManager = recordingManager else {
+            completion?(nil)
             return
         }
         recordingManager.startLidarRecording(completion: completion)
     }
     
     func stopLidarRecording(completion: ((Bool) -> Void)) {
-        guard let recordingManager = recordingManager else{
+        guard let recordingManager = recordingManager else {
+            completion(false)
             return
         }
         recordingManager.stopLidarRecording()
         completion(true)
-
     }
 }
